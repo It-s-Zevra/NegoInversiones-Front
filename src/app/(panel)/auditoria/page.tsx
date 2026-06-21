@@ -119,12 +119,39 @@ export default function AuditoriaPage() {
             onChange={(e) => list.setFilter("actorType", e.target.value)}
           />
         </Field>
+        <Field label="Usuario (ID)" htmlFor="a-user">
+          <Input
+            id="a-user"
+            inputMode="numeric"
+            value={list.filters.actorUserId ?? ""}
+            onChange={(e) => list.setFilter("actorUserId", e.target.value)}
+            placeholder="ID del usuario del panel"
+          />
+        </Field>
+        <Field label="Cliente API (ID)" htmlFor="a-client">
+          <Input
+            id="a-client"
+            inputMode="numeric"
+            value={list.filters.apiClientId ?? ""}
+            onChange={(e) => list.setFilter("apiClientId", e.target.value)}
+            placeholder="ID del cliente de API"
+          />
+        </Field>
         <Field label="Tipo de entidad" htmlFor="a-entity">
           <Input
             id="a-entity"
             value={list.filters.entityType ?? ""}
             onChange={(e) => list.setFilter("entityType", e.target.value)}
             placeholder="user, project, sale…"
+          />
+        </Field>
+        <Field label="ID de entidad" htmlFor="a-entity-id">
+          <Input
+            id="a-entity-id"
+            inputMode="numeric"
+            value={list.filters.entityId ?? ""}
+            onChange={(e) => list.setFilter("entityId", e.target.value)}
+            placeholder="ID de la entidad"
           />
         </Field>
         <Field label="Desde" htmlFor="a-from">

@@ -207,6 +207,15 @@ export default function SalesPage() {
             onChange={(e) => list.setFilter("status", e.target.value)}
           />
         </Field>
+        <Field label="Lead" htmlFor="f-lead">
+          <Input
+            id="f-lead"
+            inputMode="numeric"
+            value={list.filters.leadId ?? ""}
+            onChange={(e) => list.setFilter("leadId", e.target.value)}
+            placeholder="ID del lead"
+          />
+        </Field>
         <Field label="Proyecto" htmlFor="f-project">
           <Select
             id="f-project"
@@ -216,6 +225,15 @@ export default function SalesPage() {
             ]}
             value={list.filters.projectId ?? ""}
             onChange={(e) => list.setFilter("projectId", e.target.value)}
+          />
+        </Field>
+        <Field label="Ejecutivo" htmlFor="f-exec">
+          <Input
+            id="f-exec"
+            inputMode="numeric"
+            value={list.filters.executiveId ?? ""}
+            onChange={(e) => list.setFilter("executiveId", e.target.value)}
+            placeholder="ID del ejecutivo"
           />
         </Field>
         <Field label="Contrato desde" htmlFor="f-from">

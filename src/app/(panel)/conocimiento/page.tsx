@@ -184,6 +184,18 @@ export default function ConocimientoPage() {
           onChange={(e) => list.setFilter("brand", e.target.value)} aria-label="Filtrar por marca" />
         <Select options={ACTIVE_FILTER} value={list.filters.isActive ?? ""}
           onChange={(e) => list.setFilter("isActive", e.target.value)} aria-label="Filtrar por estado" />
+        <Select
+          options={[{ value: "", label: "Todas las etiquetas" }, ...(tags ?? []).map((t) => ({ value: t.name, label: t.name }))]}
+          value={list.filters.tag ?? ""}
+          onChange={(e) => list.setFilter("tag", e.target.value)}
+          aria-label="Filtrar por etiqueta"
+        />
+        <Select
+          options={[{ value: "", label: "Todos los proyectos" }, ...projectOptions]}
+          value={list.filters.projectId ?? ""}
+          onChange={(e) => list.setFilter("projectId", e.target.value)}
+          aria-label="Filtrar por proyecto"
+        />
       </div>
 
       <Card className="overflow-hidden p-0">
