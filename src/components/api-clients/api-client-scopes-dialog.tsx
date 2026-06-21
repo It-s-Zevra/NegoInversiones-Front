@@ -1,0 +1,91 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Dialog } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/components/ui/toast";
+import { setApiClientScopes } from "@/lib/api/api-clients";
+import { errorMessage } from "@/lib/api/errors";
+import type { ApiClient, ApiScope } from "@/lib/api/types";
+
+interface Props {
+  open: boolean;
+  client: ApiClient | null;
+  scopeCatalog: ApiScope[];
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+export function ApiClientScopesDialog({ open, client, scopeCatalog, onClose, onSaved }: Props) {
+  const toast = useToast();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset al abrir
+    setSelected(new Set());
+  }, [open, client]);
+
+  function toggle(id: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function save() {
+    if (!client) return;
+    setSaving(true);
+    try {
+      await setApiClientScopes(client.id, [...selected]);
+      toast({ tone: "success", title: "Scopes actualizados" });
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast({ tone: "error", title: "No se pudieron guardar", description: errorMessage(err) });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onClose={saving ? () => {} : onClose}
+      title={`Scopes de ${client?.name ?? ""}`}
+      description="Selecciona el conjunto completo de scopes (reemplaza el actual)."
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={save} disabled={saving} aria-busy={saving}>
+            {saving && <Spinner />}
+            Guardar scopes
+          </Button>
+        </>
+      }
+    >
+      <div className="max-h-80 space-y-2.5 overflow-auto pr-1">
+        {scopeCatalog.length === 0 ? (
+          <p className="text-sm text-muted">No hay scopes en el catálogo.</p>
+        ) : (
+          scopeCatalog.map((s) => (
+            <Checkbox
+              key={s.id}
+              checked={selected.has(s.id)}
+              onCheckedChange={(c) => toggle(s.id, c)}
+              label={s.code}
+              description={s.description ?? undefined}
+            />
+          ))
+        )}
+      </div>
+    </Dialog>
+  );
+}
