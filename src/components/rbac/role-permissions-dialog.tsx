@@ -29,6 +29,10 @@ export function RolePermissionsDialog({ open, roleId, roleName, onClose, onSaved
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
+  // true solo cuando la selección refleja el set real del rol; mientras sea false
+  // (cargando o error de carga) NO se permite guardar para no enviar un set vacío
+  // que reemplazaría (borraría) todos los permisos del rol.
+  const [baselineLoaded, setBaselineLoaded] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
 
   useEffect(() => {
@@ -37,11 +41,13 @@ export function RolePermissionsDialog({ open, roleId, roleName, onClose, onSaved
     // eslint-disable-next-line react-hooks/set-state-in-effect -- carga al abrir el diálogo
     setLoading(true);
     setError(null);
+    setBaselineLoaded(false);
     Promise.all([listPermissions(), getRole(roleId)])
       .then(([perms, role]) => {
         if (!active) return;
         setCatalog(perms);
         setSelected(new Set(role.permissions.map((p) => p.id)));
+        setBaselineLoaded(true);
       })
       .catch((e) => {
         if (active) setError(e);
@@ -87,17 +93,26 @@ export function RolePermissionsDialog({ open, roleId, roleName, onClose, onSaved
         onClose();
         return;
       }
-      toast({ tone: "error", title: "No se pudieron guardar", description: errorMessage(err) });
       if (err instanceof ApiException && err.statusCode === 422) {
-        // catálogo desactualizado: recargar y podar selección a ids vigentes
-        listPermissions()
-          .then((perms) => {
-            setCatalog(perms);
-            const ids = new Set(perms.map((p) => p.id));
-            setSelected((prev) => new Set([...prev].filter((id) => ids.has(id))));
-          })
-          .catch(() => {});
+        // catálogo desactualizado: recargar y podar la selección a ids vigentes
+        // para no reenviar un permiso eliminado y repetir el 422.
+        try {
+          const perms = await listPermissions();
+          setCatalog(perms);
+          const ids = new Set(perms.map((p) => p.id));
+          setSelected((prev) => new Set([...prev].filter((id) => ids.has(id))));
+        } catch {
+          /* si falla la recarga se conserva la selección actual */
+        }
+        toast({
+          tone: "info",
+          title: "El catálogo de permisos cambió",
+          description:
+            "Quitamos los permisos que ya no existen. Revisa la selección y vuelve a guardar.",
+        });
+        return;
       }
+      toast({ tone: "error", title: "No se pudieron guardar", description: errorMessage(err) });
     } finally {
       setSaving(false);
     }
@@ -115,7 +130,7 @@ export function RolePermissionsDialog({ open, roleId, roleName, onClose, onSaved
           <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button size="sm" onClick={save} disabled={saving || loading} aria-busy={saving}>
+          <Button size="sm" onClick={save} disabled={saving || loading || !baselineLoaded} aria-busy={saving}>
             {saving && <Spinner />}
             Guardar permisos
           </Button>

@@ -33,7 +33,16 @@ export function listProjects(
   query: ListQuery,
   signal?: AbortSignal
 ): Promise<Paginated<Project>> {
-  return http.get<Paginated<Project>>(ENDPOINTS.projects, { query, signal });
+  // Clamp del sortBy al allowlist (evita 400 si una columna usa un sortKey no permitido).
+  const sortBy = (PROJECT_SORT_FIELDS as readonly string[]).includes(
+    query.sortBy ?? ""
+  )
+    ? query.sortBy
+    : "createdAt";
+  return http.get<Paginated<Project>>(ENDPOINTS.projects, {
+    query: { ...query, sortBy },
+    signal,
+  });
 }
 
 export function getProject(id: string, signal?: AbortSignal): Promise<Project> {

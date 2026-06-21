@@ -46,6 +46,20 @@ export function ApiClientScopesDialog({
     setSelected(new Set(currentScopeIds ?? []));
   }, [open, client, currentScopeIds]);
 
+  // Tras recargar el catálogo (p. ej. después de un 422 por un scope eliminado),
+  // descarta de la selección los scopes que ya no existen, para no reenviarlos
+  // y caer en un bucle de 422. Solo poda con un catálogo ya cargado (no vacío).
+  useEffect(() => {
+    if (scopeCatalog.length === 0) return;
+    const ids = new Set(scopeCatalog.map((s) => s.id));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- poda derivada del catálogo vigente
+    setSelected((prev) =>
+      [...prev].every((id) => ids.has(id))
+        ? prev
+        : new Set([...prev].filter((id) => ids.has(id)))
+    );
+  }, [scopeCatalog]);
+
   function toggle(id: string, checked: boolean) {
     setSelected((prev) => {
       const next = new Set(prev);

@@ -50,9 +50,15 @@ export function listProjectUnits(
   query: ListQuery,
   signal?: AbortSignal
 ): Promise<Paginated<Unit>> {
+  // Clamp del sortBy al allowlist (evita 400 si una columna usa un sortKey no permitido).
+  const sortBy = (UNIT_SORT_FIELDS as readonly string[]).includes(
+    query.sortBy ?? ""
+  )
+    ? query.sortBy
+    : "createdAt";
   return http.get<Paginated<Unit>>(
     `${ENDPOINTS.projects}/${encodeURIComponent(projectId)}/units`,
-    { query, signal }
+    { query: { ...query, sortBy }, signal }
   );
 }
 
