@@ -37,12 +37,27 @@ import {
 import { formatDate } from "@/lib/format";
 import type {
   AvailabilityException,
+  AvailabilityExceptionStatus,
+  AvailabilityExceptionType,
   ExecutivesAvailability,
   Paginated,
   User,
 } from "@/lib/api/types";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+const EXC_STATUS_FILTER = [
+  { value: "", label: "Todos los estados" },
+  ...(Object.keys(EXCEPTION_STATUS_META) as AvailabilityExceptionStatus[]).map(
+    (s) => ({ value: s, label: EXCEPTION_STATUS_META[s].label })
+  ),
+];
+const EXC_TYPE_FILTER = [
+  { value: "", label: "Todos los tipos" },
+  ...(Object.keys(EXCEPTION_TYPE_LABELS) as AvailabilityExceptionType[]).map(
+    (t) => ({ value: t, label: EXCEPTION_TYPE_LABELS[t] })
+  ),
+];
 
 export default function AgendasPage() {
   const toast = useToast();
@@ -65,6 +80,9 @@ export default function AgendasPage() {
   const [selectedUser, setSelectedUser] = useState(() => user?.id ?? "");
   const [from, setFrom] = useState(() => iso(new Date()));
   const [to, setTo] = useState(() => iso(new Date(Date.now() + 6 * 86400000)));
+  const [execFilter, setExecFilter] = useState("");
+  const [excStatus, setExcStatus] = useState("");
+  const [excType, setExcType] = useState("");
 
   // El backend autoriza GET/PUT del horario por propiedad (editar el propio)
   // o por rol ADMIN/JEFE_COMERCIAL — no es un permiso fino.
@@ -85,19 +103,41 @@ export default function AgendasPage() {
     (s?: AbortSignal) =>
       rangeError
         ? Promise.resolve({ from, to, executives: [] })
-        : executivesAvailability({ from, to }, s),
-    [from, to, rangeError]
+        : executivesAvailability(
+            { from, to, executiveId: execFilter || undefined },
+            s
+          ),
+    [from, to, rangeError, execFilter]
   );
-  const exec = useResource<ExecutivesAvailability>(execFetcher, [from, to, rangeError]);
+  const exec = useResource<ExecutivesAvailability>(execFetcher, [
+    from,
+    to,
+    rangeError,
+    execFilter,
+  ]);
 
   const excFetcher = useCallback(
     (s?: AbortSignal) =>
       selectedUser
-        ? listUserExceptions(selectedUser, { page: 1, limit: 50, sortOrder: "DESC" }, s)
+        ? listUserExceptions(
+            selectedUser,
+            {
+              page: 1,
+              limit: 50,
+              sortOrder: "DESC",
+              ...(excStatus ? { status: excStatus } : {}),
+              ...(excType ? { type: excType } : {}),
+            },
+            s
+          )
         : Promise.resolve({ data: [], meta: { total: 0, page: 1, limit: 50, totalPages: 1 } }),
-    [selectedUser]
+    [selectedUser, excStatus, excType]
   );
-  const exc = useResource<Paginated<AvailabilityException>>(excFetcher, [selectedUser]);
+  const exc = useResource<Paginated<AvailabilityException>>(excFetcher, [
+    selectedUser,
+    excStatus,
+    excType,
+  ]);
 
   const [excFormOpen, setExcFormOpen] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -153,7 +193,15 @@ export default function AgendasPage() {
           <CardTitle>Disponibilidad de ejecutivos</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:max-w-md">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:max-w-2xl">
+            <Field label="Ejecutivo" htmlFor="ex-exec">
+              <Select
+                id="ex-exec"
+                options={[{ value: "", label: "Todos los ejecutivos" }, ...userOptions]}
+                value={execFilter}
+                onChange={(e) => setExecFilter(e.target.value)}
+              />
+            </Field>
             <Field label="Desde" htmlFor="ex-from">
               <Input id="ex-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
             </Field>
@@ -217,7 +265,17 @@ export default function AgendasPage() {
                 Nueva excepción
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:max-w-md">
+                <Field label="Estado" htmlFor="exc-status">
+                  <Select id="exc-status" options={EXC_STATUS_FILTER}
+                    value={excStatus} onChange={(e) => setExcStatus(e.target.value)} />
+                </Field>
+                <Field label="Tipo" htmlFor="exc-type">
+                  <Select id="exc-type" options={EXC_TYPE_FILTER}
+                    value={excType} onChange={(e) => setExcType(e.target.value)} />
+                </Field>
+              </div>
               {exc.loading ? (
                 <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
               ) : exc.error ? (
