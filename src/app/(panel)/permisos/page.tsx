@@ -126,6 +126,7 @@ export default function PermisosPage() {
         onClose={() => setFormOpen(false)}
         permission={editing}
         onSaved={refetch}
+        onNotFound={refetch}
       />
       <ConfirmDialog
         open={!!deleting}

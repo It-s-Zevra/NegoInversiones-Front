@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, Check, TriangleAlert } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,14 @@ export function ApiClientKeyDialog({
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [ack, setAck] = useState(false);
+
+  useEffect(() => {
+    if (!apiKey) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset al recibir una nueva llave
+    setCopied(false);
+    setAck(false);
+  }, [apiKey]);
 
   async function copy() {
     if (!apiKey) return;
@@ -22,16 +30,24 @@ export function ApiClientKeyDialog({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       /* clipboard no disponible */
+    } finally {
+      // Habilita "Entendido" tras intentar copiar, incluso si el clipboard falló.
+      setAck(true);
     }
   }
 
   return (
     <Dialog
       open={!!apiKey}
-      onClose={onClose}
+      // No permitir cerrar por backdrop/Escape/X: la llave se muestra una sola vez.
+      onClose={() => {}}
       title="API key generada"
       description="Cópiala ahora: no se volverá a mostrar."
-      footer={<Button size="sm" onClick={onClose}>Entendido</Button>}
+      footer={
+        <Button size="sm" onClick={onClose} disabled={!ack}>
+          Entendido
+        </Button>
+      }
     >
       <div className="space-y-3">
         <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning-soft px-3.5 py-3 text-sm text-warning">
@@ -46,6 +62,15 @@ export function ApiClientKeyDialog({
             {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
           </Button>
         </div>
+        {!ack && (
+          <button
+            type="button"
+            onClick={() => setAck(true)}
+            className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+          >
+            He guardado la llave manualmente
+          </button>
+        )}
       </div>
     </Dialog>
   );

@@ -25,9 +25,10 @@ interface Props {
   onClose: () => void;
   role?: Role | null;
   onSaved: () => void;
+  onNotFound?: () => void;
 }
 
-export function RoleForm({ open, onClose, role, onSaved }: Props) {
+export function RoleForm({ open, onClose, role, onSaved, onNotFound }: Props) {
   const toast = useToast();
   const isEdit = !!role;
   const [code, setCode] = useState<UserRole>("EJECUTIVO_VENTAS");
@@ -49,6 +50,7 @@ export function RoleForm({ open, onClose, role, onSaved }: Props) {
     e.preventDefault();
     const next: Record<string, string> = {};
     if (!name.trim()) next.name = "El nombre es obligatorio.";
+    else if (name.trim().length > 120) next.name = "Máximo 120 caracteres.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -74,6 +76,10 @@ export function RoleForm({ open, onClose, role, onSaved }: Props) {
         setErrors(mapValidationErrors(err, ["code", "name", "description"]).fieldErrors);
       } else if (err instanceof ApiException && err.statusCode === 409) {
         setErrors({ code: err.messages[0] });
+      } else if (err instanceof ApiException && err.statusCode === 404) {
+        toast({ tone: "error", title: errorMessage(err) });
+        onClose();
+        onNotFound?.();
       } else {
         toast({ tone: "error", title: "No se pudo guardar", description: errorMessage(err) });
       }

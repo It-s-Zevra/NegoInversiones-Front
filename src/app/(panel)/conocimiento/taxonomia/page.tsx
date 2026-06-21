@@ -28,7 +28,7 @@ import {
   KB_CATEGORY_CODE_RE,
 } from "@/lib/api/kb";
 import { ApiException } from "@/lib/api/http";
-import { errorMessage } from "@/lib/api/errors";
+import { errorMessage, mapValidationErrors } from "@/lib/api/errors";
 import type { KbCategory, KbTag } from "@/lib/api/types";
 
 export default function TaxonomiaPage() {
@@ -75,7 +75,12 @@ export default function TaxonomiaPage() {
       cats.refetch();
     } catch (err) {
       if (err instanceof ApiException && err.statusCode === 409) setCatErr({ code: err.messages[0] });
-      else toast({ tone: "error", title: "No se pudo guardar", description: errorMessage(err) });
+      else if (err instanceof ApiException && err.statusCode === 400) {
+        const { fieldErrors, rest } = mapValidationErrors(err, ["code", "name"]);
+        if (Object.keys(fieldErrors).length) setCatErr(fieldErrors);
+        if (rest.length) toast({ tone: "error", title: rest[0] });
+        else if (!Object.keys(fieldErrors).length) toast({ tone: "error", title: "No se pudo guardar", description: errorMessage(err) });
+      } else toast({ tone: "error", title: "No se pudo guardar", description: errorMessage(err) });
     } finally {
       setCatSaving(false);
     }
@@ -110,6 +115,10 @@ export default function TaxonomiaPage() {
       setNewTag("");
       tags.refetch();
     } catch (err) {
+      if (err instanceof ApiException && err.statusCode === 409) {
+        toast({ tone: "error", title: "Esa etiqueta ya existe", description: "Reutiliza la etiqueta existente en lugar de crear una nueva." });
+        return;
+      }
       toast({ tone: "error", title: "No se pudo crear", description: errorMessage(err) });
     } finally {
       setTagSaving(false);

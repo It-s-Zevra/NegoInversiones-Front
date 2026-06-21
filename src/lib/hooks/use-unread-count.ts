@@ -1,35 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import { getUnreadCount } from "@/lib/api/notifications";
 
 const POLL_MS = 60_000; // ver flujos: polling sugerido 30–60s
 
+/** Fuerza un refresco inmediato del contador de no leídas. Provisto en AppShell. */
+export const UnreadContext = createContext<() => void>(() => {});
+
 /** Contador de notificaciones no leídas con polling ligero. Falla en silencio. */
-export function useUnreadCount(): number {
+export function useUnreadCount(): { count: number; refresh: () => void } {
   const [count, setCount] = useState(0);
+  const activeRef = useRef(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const loadRef = useRef<() => void>(() => {});
+  // refresh estable entre renders: invoca siempre el loader más reciente.
+  const [refresh] = useState(() => () => loadRef.current());
 
   useEffect(() => {
-    let active = true;
-    let timer: ReturnType<typeof setTimeout>;
-
-    const tick = async () => {
+    activeRef.current = true;
+    // Polling no solapado: el siguiente tick se agenda al terminar el anterior.
+    const load = async () => {
+      clearTimeout(timerRef.current);
       try {
         const { count } = await getUnreadCount();
-        if (active) setCount(count);
+        if (activeRef.current) setCount(count);
       } catch {
         // ignorar: el badge no debe romper la UI
       } finally {
-        if (active) timer = setTimeout(tick, POLL_MS);
+        if (activeRef.current) timerRef.current = setTimeout(load, POLL_MS);
       }
     };
-
-    tick();
+    loadRef.current = load;
+    load();
     return () => {
-      active = false;
-      clearTimeout(timer);
+      activeRef.current = false;
+      clearTimeout(timerRef.current);
     };
   }, []);
 
-  return count;
+  return { count, refresh };
 }

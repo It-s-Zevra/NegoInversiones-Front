@@ -63,7 +63,7 @@ export function ActivityDetailDialog({
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             <div>
               <span className="text-muted">Actor: </span>
-              <Badge tone="neutral">{ACTOR_LABELS[entry.actorType]}</Badge>
+              <Badge tone="neutral">{ACTOR_LABELS[entry.actorType] ?? entry.actorType}</Badge>
             </div>
             {entry.entityType && (
               <div>

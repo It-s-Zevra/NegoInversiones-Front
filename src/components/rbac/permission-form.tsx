@@ -22,9 +22,10 @@ interface Props {
   onClose: () => void;
   permission?: Permission | null;
   onSaved: () => void;
+  onNotFound?: () => void;
 }
 
-export function PermissionForm({ open, onClose, permission, onSaved }: Props) {
+export function PermissionForm({ open, onClose, permission, onSaved, onNotFound }: Props) {
   const toast = useToast();
   const isEdit = !!permission;
   const [code, setCode] = useState("");
@@ -47,7 +48,9 @@ export function PermissionForm({ open, onClose, permission, onSaved }: Props) {
     const next: Record<string, string> = {};
     if (!isEdit && !PERMISSION_CODE_RE.test(code.trim()))
       next.code = "Formato recurso:accion en minúsculas (ej. leads:write).";
+    else if (!isEdit && code.trim().length > 120) next.code = "Máximo 120 caracteres.";
     if (!name.trim()) next.name = "El nombre es obligatorio.";
+    else if (name.trim().length > 160) next.name = "Máximo 160 caracteres.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -73,6 +76,10 @@ export function PermissionForm({ open, onClose, permission, onSaved }: Props) {
         setErrors(mapValidationErrors(err, ["code", "name", "description"]).fieldErrors);
       } else if (err instanceof ApiException && err.statusCode === 409) {
         setErrors({ code: err.messages[0] });
+      } else if (err instanceof ApiException && err.statusCode === 404) {
+        toast({ tone: "error", title: errorMessage(err) });
+        onClose();
+        onNotFound?.();
       } else {
         toast({ tone: "error", title: "No se pudo guardar", description: errorMessage(err) });
       }

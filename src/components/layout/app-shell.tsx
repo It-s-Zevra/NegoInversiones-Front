@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
-import { useUnreadCount } from "@/lib/hooks/use-unread-count";
+import { useUnreadCount, UnreadContext } from "@/lib/hooks/use-unread-count";
 import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const unreadCount = useUnreadCount();
+  const { count: unreadCount, refresh: refreshUnread } = useUnreadCount();
 
   const panelRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -55,6 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileOpen]);
 
   return (
+    <UnreadContext.Provider value={refreshUnread}>
     <div className="min-h-dvh">
       <a
         href="#main"
@@ -122,5 +123,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    </UnreadContext.Provider>
   );
 }

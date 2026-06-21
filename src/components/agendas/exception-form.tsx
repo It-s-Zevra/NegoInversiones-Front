@@ -99,7 +99,16 @@ export function ExceptionForm({ open, onClose, userId, onSaved }: Props) {
           mapValidationErrors(err, ["startDate", "endDate", "startTime", "endTime", "type"]).fieldErrors
         );
       } else if (err instanceof ApiException && err.statusCode === 422) {
-        toast({ tone: "error", title: errorMessage(err) });
+        const msg = errorMessage(err);
+        if (msg.startsWith("endDate")) {
+          setErrors({ endDate: msg });
+        } else if (msg.startsWith("startTime y endTime")) {
+          setErrors({ startTime: "Obligatorio.", endTime: msg });
+        } else if (msg.startsWith("startTime debe ser anterior")) {
+          setErrors({ endTime: msg });
+        } else {
+          toast({ tone: "error", title: msg });
+        }
       } else {
         toast({ tone: "error", title: "No se pudo crear", description: errorMessage(err) });
       }

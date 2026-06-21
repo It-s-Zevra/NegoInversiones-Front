@@ -93,9 +93,13 @@ export function UserForm({
     e.preventDefault();
     const next: Record<string, string> = {};
     if (!form.firstName.trim()) next.firstName = "Obligatorio.";
+    else if (form.firstName.trim().length > 120) next.firstName = "Máximo 120 caracteres.";
     if (!form.lastName.trim()) next.lastName = "Obligatorio.";
+    else if (form.lastName.trim().length > 120) next.lastName = "Máximo 120 caracteres.";
     if (!EMAIL_RE.test(form.email)) next.email = "Email inválido.";
     if (!form.roleId) next.roleId = "Selecciona un rol.";
+    if (form.phone.trim().length > 40) next.phone = "Máximo 40 caracteres.";
+    if (form.department.trim().length > 120) next.department = "Máximo 120 caracteres.";
     if (!isEdit && (form.password.length < 8 || form.password.length > 128))
       next.password = "Entre 8 y 128 caracteres.";
     if (isEdit && form.password && (form.password.length < 8 || form.password.length > 128))
@@ -204,12 +208,14 @@ export function UserForm({
           </Field>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Teléfono" htmlFor="u-phone">
+          <Field label="Teléfono" htmlFor="u-phone" error={errors.phone}>
             <Input id="u-phone" value={form.phone} onChange={(e) => set("phone", e.target.value)}
+              invalid={!!errors.phone} aria-describedby={errors.phone ? "u-phone-error" : undefined}
               placeholder="+59170000000" />
           </Field>
-          <Field label="Departamento" htmlFor="u-dept">
+          <Field label="Departamento" htmlFor="u-dept" error={errors.department}>
             <Input id="u-dept" value={form.department} onChange={(e) => set("department", e.target.value)}
+              invalid={!!errors.department} aria-describedby={errors.department ? "u-dept-error" : undefined}
               placeholder="Comercial" />
           </Field>
         </div>

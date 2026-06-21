@@ -5,6 +5,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorState } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { getRole, setRolePermissions } from "@/lib/api/roles";
@@ -28,6 +29,7 @@ export function RolePermissionsDialog({ open, roleId, roleName, onClose, onSaved
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
 
   useEffect(() => {
     if (!open || !roleId) return;
@@ -61,7 +63,16 @@ export function RolePermissionsDialog({ open, roleId, roleName, onClose, onSaved
     });
   }
 
-  async function save() {
+  function save() {
+    if (!roleId) return;
+    if (selected.size === 0) {
+      setConfirmRevoke(true);
+      return;
+    }
+    doSave();
+  }
+
+  async function doSave() {
     if (!roleId) return;
     setSaving(true);
     try {
@@ -70,10 +81,22 @@ export function RolePermissionsDialog({ open, roleId, roleName, onClose, onSaved
       onSaved();
       onClose();
     } catch (err) {
+      if (err instanceof ApiException && err.statusCode === 404) {
+        // el rol ya no existe: refrescar lista del padre y cerrar
+        onSaved();
+        onClose();
+        return;
+      }
       toast({ tone: "error", title: "No se pudieron guardar", description: errorMessage(err) });
       if (err instanceof ApiException && err.statusCode === 422) {
-        // catálogo desactualizado: recargar
-        listPermissions().then(setCatalog).catch(() => {});
+        // catálogo desactualizado: recargar y podar selección a ids vigentes
+        listPermissions()
+          .then((perms) => {
+            setCatalog(perms);
+            const ids = new Set(perms.map((p) => p.id));
+            setSelected((prev) => new Set([...prev].filter((id) => ids.has(id))));
+          })
+          .catch(() => {});
       }
     } finally {
       setSaving(false);
@@ -81,11 +104,12 @@ export function RolePermissionsDialog({ open, roleId, roleName, onClose, onSaved
   }
 
   return (
+    <>
     <Dialog
       open={open}
       onClose={saving ? () => {} : onClose}
       title={`Permisos de ${roleName}`}
-      description="Marca los permisos que tendrá este rol."
+      description="Marca los permisos que tendrá este rol. Afecta de inmediato a todos los usuarios con este rol."
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
@@ -123,5 +147,19 @@ export function RolePermissionsDialog({ open, roleId, roleName, onClose, onSaved
         </div>
       )}
     </Dialog>
+    <ConfirmDialog
+      open={confirmRevoke}
+      onClose={() => setConfirmRevoke(false)}
+      onConfirm={() => {
+        setConfirmRevoke(false);
+        doSave();
+      }}
+      loading={saving}
+      tone="danger"
+      title="Revocar todos los permisos…"
+      description="Este rol quedará sin permisos y todos los usuarios con este rol perderán el acceso de inmediato."
+      confirmLabel="Revocar todos"
+    />
+    </>
   );
 }

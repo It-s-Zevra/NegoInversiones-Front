@@ -42,6 +42,8 @@ export default function ApiClientsPage() {
   const [editing, setEditing] = useState<ApiClient | null>(null);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [scopesClient, setScopesClient] = useState<ApiClient | null>(null);
+  /** Scope ids conocidos por cliente (el listado no los trae). */
+  const [knownScopeIds, setKnownScopeIds] = useState<Record<string, string[]>>({});
   const [revoking, setRevoking] = useState<ApiClient | null>(null);
   const [revokeLoading, setRevokeLoading] = useState(false);
   const [scopeFormOpen, setScopeFormOpen] = useState(false);
@@ -195,7 +197,13 @@ export default function ApiClientsPage() {
         scopeCatalog={scopeCatalog}
         onSaved={(result) => {
           clients.refetch();
-          if ("apiKey" in result) setCreatedKey(result.apiKey);
+          if ("apiKey" in result) {
+            setCreatedKey(result.apiKey);
+            setKnownScopeIds((prev) => ({
+              ...prev,
+              [result.id]: result.scopes.map((s) => s.id),
+            }));
+          }
         }}
       />
       <ApiClientKeyDialog apiKey={createdKey} onClose={() => setCreatedKey(null)} />
@@ -203,8 +211,17 @@ export default function ApiClientsPage() {
         open={!!scopesClient}
         client={scopesClient}
         scopeCatalog={scopeCatalog}
+        currentScopeIds={scopesClient ? knownScopeIds[scopesClient.id] ?? null : null}
         onClose={() => setScopesClient(null)}
-        onSaved={() => clients.refetch()}
+        onSaved={(detail) => {
+          setKnownScopeIds((prev) => ({
+            ...prev,
+            [detail.id]: detail.scopes.map((s) => s.id),
+          }));
+          clients.refetch();
+        }}
+        onClientGone={() => clients.refetch()}
+        onCatalogStale={() => scopes.refetch()}
       />
       <ApiScopeForm open={scopeFormOpen} onClose={() => setScopeFormOpen(false)} onSaved={scopes.refetch} />
       <ConfirmDialog

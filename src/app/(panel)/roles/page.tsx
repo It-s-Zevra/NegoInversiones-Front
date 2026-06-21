@@ -135,7 +135,7 @@ export default function RolesPage() {
         />
       </Card>
 
-      <RoleForm open={formOpen} onClose={() => setFormOpen(false)} role={editing} onSaved={refetch} />
+      <RoleForm open={formOpen} onClose={() => setFormOpen(false)} role={editing} onSaved={refetch} onNotFound={refetch} />
       <RolePermissionsDialog
         open={!!permsRole}
         roleId={permsRole?.id ?? null}

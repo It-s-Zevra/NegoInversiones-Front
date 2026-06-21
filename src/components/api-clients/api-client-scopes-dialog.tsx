@@ -7,27 +7,44 @@ import { Spinner } from "@/components/ui/spinner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast";
 import { setApiClientScopes } from "@/lib/api/api-clients";
+import { ApiException } from "@/lib/api/http";
 import { errorMessage } from "@/lib/api/errors";
-import type { ApiClient, ApiScope } from "@/lib/api/types";
+import type { ApiClient, ApiClientDetail, ApiScope } from "@/lib/api/types";
 
 interface Props {
   open: boolean;
   client: ApiClient | null;
   scopeCatalog: ApiScope[];
+  /** Scopes actuales del cliente; null si la baseline es desconocida. */
+  currentScopeIds: string[] | null;
   onClose: () => void;
-  onSaved: () => void;
+  /** Recibe el detalle (con el set resultante de scopes) tras guardar. */
+  onSaved: (detail: ApiClientDetail) => void;
+  /** El cliente ya no existe (404 en el PUT). */
+  onClientGone: () => void;
+  /** Algún scope del catálogo dejó de existir (422 en el PUT). */
+  onCatalogStale: () => void;
 }
 
-export function ApiClientScopesDialog({ open, client, scopeCatalog, onClose, onSaved }: Props) {
+export function ApiClientScopesDialog({
+  open,
+  client,
+  scopeCatalog,
+  currentScopeIds,
+  onClose,
+  onSaved,
+  onClientGone,
+  onCatalogStale,
+}: Props) {
   const toast = useToast();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset al abrir
-    setSelected(new Set());
-  }, [open, client]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- precarga de baseline al abrir
+    setSelected(new Set(currentScopeIds ?? []));
+  }, [open, client, currentScopeIds]);
 
   function toggle(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -42,16 +59,27 @@ export function ApiClientScopesDialog({ open, client, scopeCatalog, onClose, onS
     if (!client) return;
     setSaving(true);
     try {
-      await setApiClientScopes(client.id, [...selected]);
+      const detail = await setApiClientScopes(client.id, [...selected]);
       toast({ tone: "success", title: "Scopes actualizados" });
-      onSaved();
+      onSaved(detail);
       onClose();
     } catch (err) {
-      toast({ tone: "error", title: "No se pudieron guardar", description: errorMessage(err) });
+      if (err instanceof ApiException && err.statusCode === 404) {
+        toast({ tone: "success", title: "El cliente ya no existe." });
+        onClose();
+        onClientGone();
+      } else if (err instanceof ApiException && err.statusCode === 422) {
+        toast({ tone: "error", title: errorMessage(err) });
+        onCatalogStale();
+      } else {
+        toast({ tone: "error", title: "No se pudieron guardar", description: errorMessage(err) });
+      }
     } finally {
       setSaving(false);
     }
   }
+
+  const baselineUnknown = currentScopeIds === null;
 
   return (
     <Dialog
@@ -64,13 +92,18 @@ export function ApiClientScopesDialog({ open, client, scopeCatalog, onClose, onS
           <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button size="sm" onClick={save} disabled={saving} aria-busy={saving}>
+          <Button size="sm" onClick={save} disabled={saving || baselineUnknown} aria-busy={saving}>
             {saving && <Spinner />}
             Guardar scopes
           </Button>
         </>
       }
     >
+      {baselineUnknown && (
+        <p className="mb-3 text-xs text-warning">
+          No se conocen los scopes actuales de este cliente. Guarda un cambio desde una sesión donde se hayan cargado para evitar borrarlos.
+        </p>
+      )}
       <div className="max-h-80 space-y-2.5 overflow-auto pr-1">
         {scopeCatalog.length === 0 ? (
           <p className="text-sm text-muted">No hay scopes en el catálogo.</p>

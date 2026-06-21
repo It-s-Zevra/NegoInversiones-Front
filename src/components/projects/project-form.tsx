@@ -304,6 +304,7 @@ export function ProjectForm({
 
         <Field label="Imagen de portada" htmlFor="p-img" error={errors.imgUrl}>
           <ImageUpload
+            id="p-img"
             value={form.imgUrl}
             onChange={(url) => set("imgUrl", url)}
             folder="projects"

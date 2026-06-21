@@ -13,10 +13,11 @@ interface Props {
   value: string;
   onChange: (url: string) => void;
   folder?: UploadFolder;
+  id?: string;
 }
 
 /** Sube una imagen (base64 → Cloudinary) o permite pegar la URL manualmente. */
-export function ImageUpload({ value, onChange, folder = "general" }: Props) {
+export function ImageUpload({ value, onChange, folder = "general", id }: Props) {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -75,6 +76,7 @@ export function ImageUpload({ value, onChange, folder = "general" }: Props) {
         />
       </div>
       <Input
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="…o pega una URL (https://res.cloudinary.com/…)"

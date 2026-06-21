@@ -153,7 +153,9 @@ export function KbEntryForm({
       onClose();
     } catch (err) {
       if (err instanceof ApiException && err.statusCode === 400) {
-        setErrors(mapValidationErrors(err, ["title", "content", "priority", "categoryId", "tagIds"]).fieldErrors);
+        const { fieldErrors, rest } = mapValidationErrors(err, ["title", "content", "priority", "categoryId", "tagIds"]);
+        setErrors(fieldErrors);
+        if (rest.length) toast({ tone: "error", title: "Revisa los campos del formulario", description: rest.join(" ") });
       } else if (err instanceof ApiException && err.statusCode === 422) {
         const msg = err.messages[0] ?? "";
         setErrors(/tag/i.test(msg) ? { tagIds: msg } : { categoryId: msg });
@@ -197,9 +199,12 @@ export function KbEntryForm({
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
+                id="kb-topic"
+                aria-label="Tema para la IA"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 invalid={!!errors.topic}
+                aria-describedby={errors.topic ? "kb-topic-error" : undefined}
                 placeholder="Tema, p. ej. requisitos para crédito directo"
               />
               <Button
@@ -213,7 +218,7 @@ export function KbEntryForm({
                 Generar
               </Button>
             </div>
-            {errors.topic && <p className="mt-1 text-xs text-danger">{errors.topic}</p>}
+            {errors.topic && <p id="kb-topic-error" role="alert" className="mt-1 text-xs text-danger">{errors.topic}</p>}
           </div>
         )}
 

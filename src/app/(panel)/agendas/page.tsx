@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState, EmptyState } from "@/components/ui/states";
 import { ScheduleEditor } from "@/components/agendas/schedule-editor";
 import { ExceptionForm } from "@/components/agendas/exception-form";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { useResource } from "@/lib/hooks/use-resource";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -25,6 +26,7 @@ import {
   deleteException,
 } from "@/lib/api/schedules";
 import { errorMessage } from "@/lib/api/errors";
+import { ApiException } from "@/lib/api/http";
 import {
   EXCEPTION_TYPE_LABELS,
   EXCEPTION_STATUS_META,
@@ -44,8 +46,7 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default function AgendasPage() {
   const toast = useToast();
-  const { user, can } = useAuth();
-  const canWrite = can("schedules:write");
+  const { user } = useAuth();
 
   // Usuarios para el selector
   const usersFetcher = useCallback(
@@ -65,11 +66,29 @@ export default function AgendasPage() {
   const [from, setFrom] = useState(() => iso(new Date()));
   const [to, setTo] = useState(() => iso(new Date(Date.now() + 6 * 86400000)));
 
+  // El backend autoriza GET/PUT del horario por propiedad (editar el propio)
+  // o por rol ADMIN/JEFE_COMERCIAL — no es un permiso fino.
+  const isPrivileged = user?.role === "ADMIN" || user?.role === "JEFE_COMERCIAL";
+  const canWrite = isPrivileged || (!!user?.id && selectedUser === user.id);
+  // Aprobar/rechazar es @Roles(ADMIN, JEFE_COMERCIAL).
+  const canDecide = user?.role === "ADMIN" || user?.role === "JEFE_COMERCIAL";
+
+  const rangeError = useMemo(() => {
+    if (!from || !to) return null;
+    if (to < from) return 'La fecha "Hasta" debe ser igual o posterior a "Desde".';
+    const days = Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1;
+    if (days > 92) return "El rango no puede superar los 92 días.";
+    return null;
+  }, [from, to]);
+
   const execFetcher = useCallback(
-    (s?: AbortSignal) => executivesAvailability({ from, to }, s),
-    [from, to]
+    (s?: AbortSignal) =>
+      rangeError
+        ? Promise.resolve({ from, to, executives: [] })
+        : executivesAvailability({ from, to }, s),
+    [from, to, rangeError]
   );
-  const exec = useResource<ExecutivesAvailability>(execFetcher, [from, to]);
+  const exec = useResource<ExecutivesAvailability>(execFetcher, [from, to, rangeError]);
 
   const excFetcher = useCallback(
     (s?: AbortSignal) =>
@@ -82,6 +101,8 @@ export default function AgendasPage() {
 
   const [excFormOpen, setExcFormOpen] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [deletingExc, setDeletingExc] = useState<AvailabilityException | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   async function decide(id: string, action: "approve" | "reject") {
     setActionId(id);
@@ -91,21 +112,34 @@ export default function AgendasPage() {
       toast({ tone: "success", title: action === "approve" ? "Excepción aprobada" : "Excepción rechazada" });
       exc.refetch();
     } catch (err) {
-      toast({ tone: "error", title: "No se pudo procesar", description: errorMessage(err) });
+      if (err instanceof ApiException && err.statusCode === 404) {
+        toast({ tone: "success", title: "La excepción ya no existe." });
+        exc.refetch();
+      } else {
+        toast({ tone: "error", title: "No se pudo procesar", description: errorMessage(err) });
+      }
     } finally {
       setActionId(null);
     }
   }
-  async function removeExc(id: string) {
-    setActionId(id);
+  async function removeExc() {
+    if (!deletingExc) return;
+    setDeleteLoading(true);
     try {
-      await deleteException(id);
+      await deleteException(deletingExc.id);
       toast({ tone: "success", title: "Excepción eliminada" });
+      setDeletingExc(null);
       exc.refetch();
     } catch (err) {
-      toast({ tone: "error", title: "No se pudo eliminar", description: errorMessage(err) });
+      if (err instanceof ApiException && err.statusCode === 404) {
+        toast({ tone: "success", title: "La excepción ya no existe." });
+        setDeletingExc(null);
+        exc.refetch();
+      } else {
+        toast({ tone: "error", title: "No se pudo eliminar", description: errorMessage(err) });
+      }
     } finally {
-      setActionId(null);
+      setDeleteLoading(false);
     }
   }
 
@@ -124,11 +158,13 @@ export default function AgendasPage() {
               <Input id="ex-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
             </Field>
             <Field label="Hasta" htmlFor="ex-to">
-              <Input id="ex-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <Input id="ex-to" type="date" min={from} value={to} onChange={(e) => setTo(e.target.value)} />
             </Field>
           </div>
 
-          {exec.loading ? (
+          {rangeError ? (
+            <p className="text-sm text-danger">{rangeError}</p>
+          ) : exec.loading ? (
             <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : exec.error ? (
             <ErrorState error={exec.error} onRetry={exec.refetch} />
@@ -210,7 +246,7 @@ export default function AgendasPage() {
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
-                        {e.status === "PENDIENTE" && (
+                        {canDecide && e.status === "PENDIENTE" && (
                           <>
                             <Button size="sm" variant="secondary" onClick={() => decide(e.id, "approve")}
                               disabled={actionId === e.id} aria-busy={actionId === e.id}>
@@ -225,7 +261,7 @@ export default function AgendasPage() {
                           </>
                         )}
                         {e.userId !== null && (
-                          <button type="button" onClick={() => removeExc(e.id)} disabled={actionId === e.id}
+                          <button type="button" onClick={() => setDeletingExc(e)}
                             className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
                             aria-label="Eliminar excepción">
                             <Trash2 className="h-4 w-4" />
@@ -244,6 +280,15 @@ export default function AgendasPage() {
             onClose={() => setExcFormOpen(false)}
             userId={selectedUser}
             onSaved={() => exc.refetch()}
+          />
+
+          <ConfirmDialog
+            open={!!deletingExc}
+            onClose={() => setDeletingExc(null)}
+            onConfirm={removeExc}
+            title="Eliminar excepción"
+            confirmLabel="Eliminar"
+            loading={deleteLoading}
           />
         </>
       )}

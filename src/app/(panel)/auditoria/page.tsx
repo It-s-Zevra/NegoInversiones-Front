@@ -50,6 +50,11 @@ export default function AuditoriaPage() {
   const dateValue = (key: "dateFrom" | "dateTo") =>
     (list.filters[key] ?? "").slice(0, 10);
 
+  // Rango invertido: ambas fechas seteadas y la inicial es posterior a la final.
+  const fromIso = list.filters.dateFrom ?? "";
+  const toIso = list.filters.dateTo ?? "";
+  const invertedRange = !!fromIso && !!toIso && fromIso > toIso;
+
   const columns: Column<ActivityLogEntry>[] = [
     {
       key: "createdAt",
@@ -127,6 +132,8 @@ export default function AuditoriaPage() {
             id="a-from"
             type="date"
             value={dateValue("dateFrom")}
+            max={dateValue("dateTo") || undefined}
+            invalid={invertedRange}
             onChange={(e) => setDate("dateFrom", e.target.value)}
           />
         </Field>
@@ -135,10 +142,18 @@ export default function AuditoriaPage() {
             id="a-to"
             type="date"
             value={dateValue("dateTo")}
+            min={dateValue("dateFrom") || undefined}
+            invalid={invertedRange}
             onChange={(e) => setDate("dateTo", e.target.value)}
           />
         </Field>
       </div>
+
+      {invertedRange && (
+        <p role="alert" className="text-sm text-danger">
+          La fecha &ldquo;Desde&rdquo; no puede ser posterior a &ldquo;Hasta&rdquo;.
+        </p>
+      )}
 
       <Card className="overflow-hidden p-0">
         <DataTable

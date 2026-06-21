@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage, mapValidationErrors } from "@/lib/api/errors";
@@ -34,6 +35,7 @@ export function ApiClientForm({ open, onClose, client, scopeCatalog, onSaved }: 
   const [scopeIds, setScopeIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -42,6 +44,7 @@ export function ApiClientForm({ open, onClose, client, scopeCatalog, onSaved }: 
     setName(client?.name ?? "");
     setIsActive(client?.isActive ?? true);
     setScopeIds(new Set());
+    setConfirmDeactivate(false);
   }, [open, client]);
 
   function toggleScope(id: string, checked: boolean) {
@@ -53,12 +56,7 @@ export function ApiClientForm({ open, onClose, client, scopeCatalog, onSaved }: 
     });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) {
-      setErrors({ name: "El nombre es obligatorio." });
-      return;
-    }
+  async function doSave() {
     setSubmitting(true);
     try {
       const result = isEdit
@@ -70,6 +68,10 @@ export function ApiClientForm({ open, onClose, client, scopeCatalog, onSaved }: 
     } catch (err) {
       if (err instanceof ApiException && err.statusCode === 400) {
         setErrors(mapValidationErrors(err, ["name", "scopeIds"]).fieldErrors);
+      } else if (err instanceof ApiException && err.statusCode === 404) {
+        toast({ tone: "success", title: "El cliente ya no existe." });
+        onSaved(client!);
+        onClose();
       } else if (err instanceof ApiException && err.statusCode === 422) {
         toast({ tone: "error", title: errorMessage(err) });
       } else {
@@ -80,7 +82,21 @@ export function ApiClientForm({ open, onClose, client, scopeCatalog, onSaved }: 
     }
   }
 
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) {
+      setErrors({ name: "El nombre es obligatorio." });
+      return;
+    }
+    if (isEdit && client?.isActive === true && isActive === false) {
+      setConfirmDeactivate(true);
+      return;
+    }
+    await doSave();
+  }
+
   return (
+    <>
     <Dialog
       open={open}
       onClose={submitting ? () => {} : onClose}
@@ -133,5 +149,19 @@ export function ApiClientForm({ open, onClose, client, scopeCatalog, onSaved }: 
         )}
       </form>
     </Dialog>
+    <ConfirmDialog
+      open={confirmDeactivate}
+      onClose={() => setConfirmDeactivate(false)}
+      onConfirm={() => {
+        setConfirmDeactivate(false);
+        void doSave();
+      }}
+      loading={submitting}
+      tone="danger"
+      title="Desactivar cliente de API"
+      description="Su API key dejará de funcionar y cualquier integración en producción que la use se pausará. ¿Continuar?"
+      confirmLabel="Desactivar"
+    />
+    </>
   );
 }

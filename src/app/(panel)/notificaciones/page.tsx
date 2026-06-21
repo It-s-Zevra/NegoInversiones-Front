@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { CheckCheck, Check } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,12 +13,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState, EmptyState } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { useList } from "@/lib/hooks/use-list";
+import { UnreadContext } from "@/lib/hooks/use-unread-count";
 import {
   listNotifications,
   markNotificationRead,
   markAllNotificationsRead,
 } from "@/lib/api/notifications";
 import { errorMessage } from "@/lib/api/errors";
+import { ApiException } from "@/lib/api/http";
 import { formatRelativeTime } from "@/lib/format";
 import { NOTIFICATION_TYPE_LABELS, labelFor } from "@/lib/constants";
 import type { Notification, NotificationType } from "@/lib/api/types";
@@ -39,6 +41,7 @@ const TYPE_FILTER = [
 
 export default function NotificacionesPage() {
   const toast = useToast();
+  const refreshUnread = useContext(UnreadContext);
   const list = useList<Notification>(listNotifications, { initialSortOrder: "DESC" });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
@@ -49,8 +52,14 @@ export default function NotificacionesPage() {
     try {
       await markNotificationRead(n.id);
       list.refetch();
+      refreshUnread();
     } catch (err) {
-      toast({ tone: "error", title: "No se pudo marcar", description: errorMessage(err) });
+      if (err instanceof ApiException && err.statusCode === 404) {
+        // La notificación ya no existe: sincronizamos la lista.
+        list.refetch();
+      } else {
+        toast({ tone: "error", title: "No se pudo marcar", description: errorMessage(err) });
+      }
     } finally {
       setBusyId(null);
     }
@@ -61,6 +70,7 @@ export default function NotificacionesPage() {
       const res = await markAllNotificationsRead();
       toast({ tone: "success", title: res.updated > 0 ? `${res.updated} marcadas como leídas` : "Sin pendientes" });
       list.refetch();
+      refreshUnread();
     } catch (err) {
       toast({ tone: "error", title: "No se pudo", description: errorMessage(err) });
     } finally {
