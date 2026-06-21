@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Upload, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -86,6 +86,20 @@ export default function SalesPage() {
     setEditing(sale);
     setFormOpen(true);
   }
+
+  // Abre el form si se llega con ?new=1 (botón "Nueva venta" del dashboard).
+  useEffect(() => {
+    if (
+      canCreate &&
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("new") === "1"
+    ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- abre el form al llegar con ?new=1
+      openCreate();
+      window.history.replaceState(null, "", "/ventas");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function confirmDelete() {
     if (!deleting) return;

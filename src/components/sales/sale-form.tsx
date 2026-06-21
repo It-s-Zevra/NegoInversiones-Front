@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
+import { useResource } from "@/lib/hooks/use-resource";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage, mapValidationErrors } from "@/lib/api/errors";
 import {
@@ -17,8 +18,10 @@ import {
   type CreateSaleInput,
   type UpdateSaleInput,
 } from "@/lib/api/sales";
+import { listUsers } from "@/lib/api/users";
+import { listProjectUnits } from "@/lib/api/units";
 import { SALE_STATUS_META } from "@/lib/constants";
-import type { Sale, SaleStatus } from "@/lib/api/types";
+import type { Sale, SaleStatus, User, Unit, Paginated } from "@/lib/api/types";
 
 const STATUS_OPTIONS = (Object.keys(SALE_STATUS_META) as SaleStatus[]).map(
   (s) => ({ value: s, label: SALE_STATUS_META[s].label })
@@ -90,6 +93,10 @@ export function SaleForm({
   const toast = useToast();
   const isEdit = !!sale;
 
+  const [form, setForm] = useState<SaleFormState>(emptyForm);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
   // Asegura que el proyecto de la venta tenga opción aunque no esté en los 100 cargados.
   const resolvedProjectOptions = useMemo(() => {
     if (sale && !projectOptions.some((o) => o.value === sale.projectId)) {
@@ -101,9 +108,53 @@ export function SaleForm({
     return projectOptions;
   }, [projectOptions, sale]);
 
-  const [form, setForm] = useState<SaleFormState>(emptyForm);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
+  // Ejecutivos = usuarios (selector en vez de pedir el ID a mano).
+  const usersFetcher = useCallback(
+    (signal?: AbortSignal) =>
+      open
+        ? listUsers(
+            { page: 1, limit: 100, sortBy: "firstName", sortOrder: "ASC" },
+            signal
+          )
+        : Promise.resolve(null),
+    [open]
+  );
+  const usersRes = useResource<Paginated<User> | null>(usersFetcher, [open]);
+  const executiveOptions = useMemo<SelectOption[]>(() => {
+    const opts = (usersRes.data?.data ?? []).map((u) => ({
+      value: u.id,
+      label: `${u.firstName} ${u.lastName}`,
+    }));
+    if (sale?.executiveId && !opts.some((o) => o.value === sale.executiveId)) {
+      opts.push({ value: sale.executiveId, label: `Ejecutivo #${sale.executiveId}` });
+    }
+    return opts;
+  }, [usersRes.data, sale]);
+
+  // Unidades del proyecto seleccionado (selector dependiente del proyecto).
+  const projectId = form.projectId;
+  const unitsFetcher = useCallback(
+    (signal?: AbortSignal) =>
+      open && projectId
+        ? listProjectUnits(
+            projectId,
+            { page: 1, limit: 100, sortBy: "code", sortOrder: "ASC" },
+            signal
+          )
+        : Promise.resolve(null),
+    [open, projectId]
+  );
+  const unitsRes = useResource<Paginated<Unit> | null>(unitsFetcher, [open, projectId]);
+  const unitOptions = useMemo<SelectOption[]>(() => {
+    const opts = (unitsRes.data?.data ?? []).map((u) => ({
+      value: u.id,
+      label: u.code,
+    }));
+    if (sale?.unitId && !opts.some((o) => o.value === sale.unitId)) {
+      opts.push({ value: sale.unitId, label: `Unidad #${sale.unitId}` });
+    }
+    return opts;
+  }, [unitsRes.data, sale]);
 
   useEffect(() => {
     if (!open) return;
@@ -133,6 +184,11 @@ export function SaleForm({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  // Al cambiar de proyecto, la unidad anterior deja de ser válida.
+  function onProjectChange(value: string) {
+    setForm((f) => ({ ...f, projectId: value, unitId: "" }));
+  }
+
   function validate(): boolean {
     const next: Record<string, string> = {};
     if (!isEdit && !form.leadId.trim()) next.leadId = "El lead es obligatorio.";
@@ -143,8 +199,7 @@ export function SaleForm({
       if (!isEdit) next.totalPrice = "El precio total es obligatorio.";
     } else {
       const n = Number(form.totalPrice);
-      if (Number.isNaN(n) || n < 0)
-        next.totalPrice = "Debe ser un número ≥ 0.";
+      if (Number.isNaN(n) || n < 0) next.totalPrice = "Debe ser un número ≥ 0.";
     }
 
     for (const key of ["downPayment", "interestRate"] as const) {
@@ -156,8 +211,7 @@ export function SaleForm({
     }
     if (form.financingTermMonths.trim() !== "") {
       const n = Number(form.financingTermMonths);
-      if (!Number.isInteger(n) || n < 0)
-        next.financingTermMonths = "Entero ≥ 0.";
+      if (!Number.isInteger(n) || n < 0) next.financingTermMonths = "Entero ≥ 0.";
     }
     if (form.currency.trim() !== "" && form.currency.trim().length !== 3)
       next.currency = "La moneda debe tener 3 letras.";
@@ -190,7 +244,6 @@ export function SaleForm({
           ...(form.totalPrice.trim() === ""
             ? {}
             : { totalPrice: Number(form.totalPrice) }),
-          // Omitir si está vacío (consistente con el resto del PATCH parcial).
           ...(form.agreements.trim()
             ? { agreements: form.agreements.trim() }
             : {}),
@@ -246,6 +299,12 @@ export function SaleForm({
     }
   }
 
+  const unitPlaceholder = !form.projectId
+    ? "Elegí un proyecto primero"
+    : unitsRes.loading
+      ? "Cargando unidades…"
+      : "Sin unidad";
+
   return (
     <Dialog
       open={open}
@@ -283,24 +342,23 @@ export function SaleForm({
       <form id="sale-form" onSubmit={handleSubmit} noValidate className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
-            label="Lead (ID)"
+            label="Lead"
             htmlFor="s-lead"
             required={!isEdit}
             error={errors.leadId}
-            hint={isEdit ? "No se puede cambiar tras registrar." : undefined}
+            hint={
+              isEdit
+                ? "No se puede cambiar tras registrar."
+                : "ID del lead (proviene del CRM/agente)."
+            }
           >
             <Input
               id="s-lead"
+              inputMode="numeric"
               value={form.leadId}
               onChange={(e) => set("leadId", e.target.value)}
               invalid={!!errors.leadId}
-              aria-describedby={
-                errors.leadId
-                  ? "s-lead-error"
-                  : isEdit
-                    ? "s-lead-hint"
-                    : undefined
-              }
+              aria-describedby={errors.leadId ? "s-lead-error" : "s-lead-hint"}
               disabled={isEdit}
               placeholder="120"
             />
@@ -323,7 +381,7 @@ export function SaleForm({
               options={resolvedProjectOptions}
               placeholder="Selecciona un proyecto"
               value={form.projectId}
-              onChange={(e) => set("projectId", e.target.value)}
+              onChange={(e) => onProjectChange(e.target.value)}
               invalid={!!errors.projectId}
               aria-describedby={
                 errors.projectId
@@ -338,28 +396,27 @@ export function SaleForm({
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Unidad (ID)" htmlFor="s-unit" error={errors.unitId}>
-            <Input
+          <Field label="Unidad" htmlFor="s-unit" error={errors.unitId}>
+            <Select
               id="s-unit"
+              options={unitOptions}
+              placeholder={unitPlaceholder}
               value={form.unitId}
               onChange={(e) => set("unitId", e.target.value)}
               invalid={!!errors.unitId}
               aria-describedby={errors.unitId ? "s-unit-error" : undefined}
-              placeholder="15"
+              disabled={!form.projectId}
             />
           </Field>
-          <Field
-            label="Ejecutivo (ID)"
-            htmlFor="s-exec"
-            error={errors.executiveId}
-          >
-            <Input
+          <Field label="Ejecutivo" htmlFor="s-exec" error={errors.executiveId}>
+            <Select
               id="s-exec"
+              options={executiveOptions}
+              placeholder={usersRes.loading ? "Cargando…" : "Sin asignar"}
               value={form.executiveId}
               onChange={(e) => set("executiveId", e.target.value)}
               invalid={!!errors.executiveId}
               aria-describedby={errors.executiveId ? "s-exec-error" : undefined}
-              placeholder="4"
             />
           </Field>
         </div>
@@ -405,11 +462,7 @@ export function SaleForm({
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field
-            label="Cuota inicial"
-            htmlFor="s-down"
-            error={errors.downPayment}
-          >
+          <Field label="Cuota inicial" htmlFor="s-down" error={errors.downPayment}>
             <Input
               id="s-down"
               type="number"

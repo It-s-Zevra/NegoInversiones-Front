@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { Download, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Button } from "@/components/ui/button";
+import { DashboardActions } from "@/components/dashboard/dashboard-actions";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { SalesChart } from "@/components/dashboard/sales-chart";
 import { UnitsBreakdown } from "@/components/dashboard/units-breakdown";
@@ -17,18 +16,7 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description="Resumen comercial de NegoInversiones."
-        actions={
-          <>
-            <Button variant="secondary" size="md">
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Exportar</span>
-            </Button>
-            <Button size="md">
-              <Plus className="h-4 w-4" />
-              Nueva venta
-            </Button>
-          </>
-        }
+        actions={<DashboardActions />}
       />
 
       {/* KPIs */}
