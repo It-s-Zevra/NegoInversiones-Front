@@ -50,12 +50,6 @@ export function setUserSchedule(
   );
 }
 
-export function deleteSchedule(id: string): Promise<{ message: string }> {
-  return http.del<{ message: string }>(
-    `${ENDPOINTS.schedules}/${encodeURIComponent(id)}`
-  );
-}
-
 /* Excepciones de disponibilidad */
 export interface CreateExceptionInput {
   type: AvailabilityExceptionType;
