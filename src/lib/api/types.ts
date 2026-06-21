@@ -284,6 +284,15 @@ export interface ExecutivesAvailability {
   executives: ExecutiveAvailability[];
 }
 
+/** Disponibilidad efectiva de un usuario en una fecha (ver flujos/agendas/12). */
+export interface AvailabilityResolution {
+  date: string;
+  dayOfWeek: number;
+  available: boolean;
+  windows: { start: string; end: string }[];
+  appliedExceptions: AvailabilityException[];
+}
+
 /* ---------- Proyectos ---------- */
 
 export interface Project {

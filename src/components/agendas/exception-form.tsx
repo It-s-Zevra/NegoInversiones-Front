@@ -12,9 +12,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage, mapValidationErrors } from "@/lib/api/errors";
-import { createUserException } from "@/lib/api/schedules";
+import { createUserException, updateException } from "@/lib/api/schedules";
 import { EXCEPTION_TYPE_LABELS, EXCEPTION_EFFECT_LABELS } from "@/lib/constants";
 import type {
+  AvailabilityException,
   AvailabilityExceptionType,
   AvailabilityExceptionEffect,
 } from "@/lib/api/types";
@@ -30,10 +31,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   userId: string;
+  /** Si se pasa, el formulario edita esa excepción (PATCH) en vez de crear. */
+  exception?: AvailabilityException | null;
   onSaved: () => void;
 }
 
-export function ExceptionForm({ open, onClose, userId, onSaved }: Props) {
+export function ExceptionForm({ open, onClose, userId, exception, onSaved }: Props) {
   const toast = useToast();
   const [type, setType] = useState<AvailabilityExceptionType>("VACACIONES");
   const [effect, setEffect] = useState<AvailabilityExceptionEffect>("BLOQUEA");
@@ -49,18 +52,18 @@ export function ExceptionForm({ open, onClose, userId, onSaved }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset al abrir
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset/precarga al abrir
     setErrors({});
-    setType("VACACIONES");
-    setEffect("BLOQUEA");
-    setStartDate("");
-    setEndDate("");
-    setIsAllDay(true);
-    setStartTime("");
-    setEndTime("");
-    setReason("");
-    setNotes("");
-  }, [open]);
+    setType(exception?.type ?? "VACACIONES");
+    setEffect(exception?.effect ?? "BLOQUEA");
+    setStartDate(exception?.startDate?.slice(0, 10) ?? "");
+    setEndDate(exception?.endDate?.slice(0, 10) ?? "");
+    setIsAllDay(exception?.isAllDay ?? true);
+    setStartTime(exception?.startTime?.slice(0, 5) ?? "");
+    setEndTime(exception?.endTime?.slice(0, 5) ?? "");
+    setReason(exception?.reason ?? "");
+    setNotes(exception?.notes ?? "");
+  }, [open, exception]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -79,21 +82,33 @@ export function ExceptionForm({ open, onClose, userId, onSaved }: Props) {
     if (Object.keys(next).length) return;
 
     setSubmitting(true);
+    const body = {
+      type,
+      effect,
+      startDate,
+      endDate,
+      isAllDay,
+      ...(isAllDay ? {} : { startTime, endTime }),
+      reason: reason.trim() || undefined,
+      notes: notes.trim() || undefined,
+    };
     try {
-      await createUserException(userId, {
-        type,
-        effect,
-        startDate,
-        endDate,
-        isAllDay,
-        ...(isAllDay ? {} : { startTime, endTime }),
-        reason: reason.trim() || undefined,
-        notes: notes.trim() || undefined,
-      });
-      toast({ tone: "success", title: "Excepción creada" });
+      if (exception) {
+        await updateException(exception.id, body);
+        toast({ tone: "success", title: "Excepción actualizada" });
+      } else {
+        await createUserException(userId, body);
+        toast({ tone: "success", title: "Excepción creada" });
+      }
       onSaved();
       onClose();
     } catch (err) {
+      if (exception && err instanceof ApiException && err.statusCode === 404) {
+        toast({ tone: "success", title: "La excepción ya no existe." });
+        onSaved();
+        onClose();
+        return;
+      }
       if (err instanceof ApiException && err.statusCode === 400) {
         setErrors(
           mapValidationErrors(err, ["startDate", "endDate", "startTime", "endTime", "type"]).fieldErrors
@@ -102,15 +117,15 @@ export function ExceptionForm({ open, onClose, userId, onSaved }: Props) {
         const msg = errorMessage(err);
         if (msg.startsWith("endDate")) {
           setErrors({ endDate: msg });
-        } else if (msg.startsWith("startTime y endTime")) {
-          setErrors({ startTime: "Obligatorio.", endTime: msg });
+        } else if (msg.startsWith("Con isAllDay") || msg.startsWith("startTime y endTime")) {
+          setErrors({ startTime: "Revisa la franja.", endTime: msg });
         } else if (msg.startsWith("startTime debe ser anterior")) {
           setErrors({ endTime: msg });
         } else {
           toast({ tone: "error", title: msg });
         }
       } else {
-        toast({ tone: "error", title: "No se pudo crear", description: errorMessage(err) });
+        toast({ tone: "error", title: "No se pudo guardar", description: errorMessage(err) });
       }
     } finally {
       setSubmitting(false);
@@ -121,7 +136,7 @@ export function ExceptionForm({ open, onClose, userId, onSaved }: Props) {
     <Dialog
       open={open}
       onClose={submitting ? () => {} : onClose}
-      title="Nueva excepción"
+      title={exception ? "Editar excepción" : "Nueva excepción"}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose} disabled={submitting}>
@@ -129,7 +144,7 @@ export function ExceptionForm({ open, onClose, userId, onSaved }: Props) {
           </Button>
           <Button type="submit" form="exc-form" size="sm" disabled={submitting} aria-busy={submitting}>
             {submitting && <Spinner />}
-            Crear
+            {exception ? "Guardar" : "Crear"}
           </Button>
         </>
       }

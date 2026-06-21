@@ -5,6 +5,7 @@ import type {
   Paginated,
   Schedule,
   AvailabilityException,
+  AvailabilityResolution,
   ExecutivesAvailability,
   AvailabilityExceptionType,
   AvailabilityExceptionEffect,
@@ -110,6 +111,19 @@ export function approveException(id: string): Promise<AvailabilityException> {
 
 export function rejectException(id: string): Promise<AvailabilityException> {
   return http.post<AvailabilityException>(`${exceptionById(id)}/reject`);
+}
+
+/** Disponibilidad efectiva de un usuario en una fecha concreta (ver flujos/agendas/12).
+   = horario recurrente − excepciones APROBADAS que bloquean + las que abren. */
+export function userAvailability(
+  userId: string,
+  date: string,
+  signal?: AbortSignal
+): Promise<AvailabilityResolution> {
+  return http.get<AvailabilityResolution>(
+    `${ENDPOINTS.users}/${encodeURIComponent(userId)}/availability`,
+    { query: { date }, signal }
+  );
 }
 
 /** Disponibilidad de ejecutivos en un rango (vista de gestión). */

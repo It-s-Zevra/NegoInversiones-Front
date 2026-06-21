@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Plus, Check, X, Trash2 } from "lucide-react";
+import { Plus, Pencil, Check, X, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { listUsers } from "@/lib/api/users";
 import {
   executivesAvailability,
+  userAvailability,
   listUserExceptions,
   approveException,
   rejectException,
@@ -39,6 +40,7 @@ import type {
   AvailabilityException,
   AvailabilityExceptionStatus,
   AvailabilityExceptionType,
+  AvailabilityResolution,
   ExecutivesAvailability,
   Paginated,
   User,
@@ -83,6 +85,7 @@ export default function AgendasPage() {
   const [execFilter, setExecFilter] = useState("");
   const [excStatus, setExcStatus] = useState("");
   const [excType, setExcType] = useState("");
+  const [availDate, setAvailDate] = useState(() => iso(new Date()));
 
   // El backend autoriza GET/PUT del horario por propiedad (editar el propio)
   // o por rol ADMIN/JEFE_COMERCIAL — no es un permiso fino.
@@ -139,7 +142,20 @@ export default function AgendasPage() {
     excType,
   ]);
 
+  const availFetcher = useCallback(
+    (s?: AbortSignal) =>
+      selectedUser && availDate
+        ? userAvailability(selectedUser, availDate, s)
+        : Promise.resolve(null),
+    [selectedUser, availDate]
+  );
+  const avail = useResource<AvailabilityResolution | null>(availFetcher, [
+    selectedUser,
+    availDate,
+  ]);
+
   const [excFormOpen, setExcFormOpen] = useState(false);
+  const [editingExc, setEditingExc] = useState<AvailabilityException | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [deletingExc, setDeletingExc] = useState<AvailabilityException | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -259,8 +275,68 @@ export default function AgendasPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Disponibilidad efectiva</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:max-w-xs">
+                <Field label="Fecha" htmlFor="av-date">
+                  <Input id="av-date" type="date" value={availDate}
+                    onChange={(e) => setAvailDate(e.target.value)} />
+                </Field>
+              </div>
+              {avail.loading ? (
+                <Skeleton className="h-12 w-full" />
+              ) : avail.error ? (
+                <ErrorState error={avail.error} onRetry={avail.refetch} />
+              ) : avail.data ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {avail.data.available ? (
+                      <Badge tone="success" dot>Disponible</Badge>
+                    ) : (
+                      <Badge tone="neutral" dot>No disponible</Badge>
+                    )}
+                    <span className="text-xs text-muted">
+                      {DAY_OF_WEEK_LABELS[avail.data.dayOfWeek]} · {formatDate(avail.data.date)}
+                    </span>
+                  </div>
+                  {avail.data.windows.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {avail.data.windows.map((w, i) => (
+                        <span key={i} className="rounded-md border border-border bg-surface-muted px-2 py-1 text-xs text-muted">
+                          {w.start}–{w.end}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted">Sin ventanas disponibles ese día.</p>
+                  )}
+                  {avail.data.appliedExceptions.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-foreground">Excepciones aplicadas</p>
+                      <ul className="mt-1 space-y-1">
+                        {avail.data.appliedExceptions.map((ex) => (
+                          <li key={ex.id} className="text-xs text-muted">
+                            {labelFor(EXCEPTION_TYPE_LABELS, ex.type)} ·{" "}
+                            {labelFor(EXCEPTION_EFFECT_LABELS, ex.effect)}
+                            {!ex.isAllDay && ex.startTime && ex.endTime
+                              ? ` · ${ex.startTime.slice(0, 5)}–${ex.endTime.slice(0, 5)}`
+                              : ""}
+                            {ex.reason ? ` · ${ex.reason}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Excepciones de disponibilidad</CardTitle>
-              <Button size="sm" variant="secondary" onClick={() => setExcFormOpen(true)}>
+              <Button size="sm" variant="secondary" onClick={() => { setEditingExc(null); setExcFormOpen(true); }}>
                 <Plus className="h-4 w-4" />
                 Nueva excepción
               </Button>
@@ -318,7 +394,14 @@ export default function AgendasPage() {
                             </Button>
                           </>
                         )}
-                        {e.userId !== null && (
+                        {canWrite && e.userId !== null && (
+                          <button type="button" onClick={() => { setEditingExc(e); setExcFormOpen(true); }}
+                            className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
+                            aria-label="Editar excepción">
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canWrite && e.userId !== null && (
                           <button type="button" onClick={() => setDeletingExc(e)}
                             className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
                             aria-label="Eliminar excepción">
@@ -337,6 +420,7 @@ export default function AgendasPage() {
             open={excFormOpen}
             onClose={() => setExcFormOpen(false)}
             userId={selectedUser}
+            exception={editingExc}
             onSaved={() => exc.refetch()}
           />
 
