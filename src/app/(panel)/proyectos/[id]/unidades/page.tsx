@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { Pagination } from "@/components/ui/pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/states";
 import { UnitForm } from "@/components/units/unit-form";
+import { CsvImportDialog } from "@/components/ui/csv-import-dialog";
+import { projectUnitsImporter } from "@/lib/api/csv-import";
 import { useToast } from "@/components/ui/toast";
 import { useList } from "@/lib/hooks/use-list";
 import { useResource } from "@/lib/hooks/use-resource";
@@ -87,7 +89,10 @@ export default function ProjectUnitsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
+  const importer = useMemo(() => projectUnitsImporter(projectId), [projectId]);
+
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
   const [deleting, setDeleting] = useState<Unit | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -242,10 +247,16 @@ export default function ProjectUnitsPage() {
         description={project ? `Unidades de ${project.name}.` : "Unidades del proyecto."}
         actions={
           canWrite && (
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              Agregar unidad
-            </Button>
+            <>
+              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4" />
+                Importar CSV
+              </Button>
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                Agregar unidad
+              </Button>
+            </>
           )
         }
       />
@@ -323,6 +334,16 @@ export default function ProjectUnitsPage() {
         unit={editing}
         onSaved={() => list.refetch()}
       />
+
+      {canWrite && (
+        <CsvImportDialog
+          open={importOpen}
+          title="Importar unidades (CSV)"
+          importer={importer}
+          onClose={() => setImportOpen(false)}
+          onImported={() => list.refetch()}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleting}

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Upload, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SaleForm } from "@/components/sales/sale-form";
+import { CsvImportDialog } from "@/components/ui/csv-import-dialog";
+import { salesImporter } from "@/lib/api/csv-import";
 import { useToast } from "@/components/ui/toast";
 import { useList } from "@/lib/hooks/use-list";
 import { useResource } from "@/lib/hooks/use-resource";
@@ -71,6 +73,7 @@ export default function SalesPage() {
   });
 
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Sale | null>(null);
   const [deleting, setDeleting] = useState<Sale | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -186,10 +189,16 @@ export default function SalesPage() {
         description="Historial de ventas de NegoInversiones."
         actions={
           canCreate && (
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              Registrar venta
-            </Button>
+            <>
+              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4" />
+                Importar CSV
+              </Button>
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                Registrar venta
+              </Button>
+            </>
           )
         }
       />
@@ -309,6 +318,16 @@ export default function SalesPage() {
         onSaved={() => list.refetch()}
         onNotFound={() => list.refetch()}
       />
+
+      {canCreate && (
+        <CsvImportDialog
+          open={importOpen}
+          title="Importar ventas (CSV)"
+          importer={salesImporter}
+          onClose={() => setImportOpen(false)}
+          onImported={() => list.refetch()}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleting}

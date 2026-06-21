@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Plus, Pencil, Check, X, Trash2 } from "lucide-react";
+import { Plus, Upload, Pencil, Check, X, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { ErrorState, EmptyState } from "@/components/ui/states";
 import { ScheduleEditor } from "@/components/agendas/schedule-editor";
 import { ExceptionForm } from "@/components/agendas/exception-form";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CsvImportDialog } from "@/components/ui/csv-import-dialog";
+import { schedulesImporter } from "@/lib/api/csv-import";
 import { useToast } from "@/components/ui/toast";
 import { useResource } from "@/lib/hooks/use-resource";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -155,6 +157,7 @@ export default function AgendasPage() {
   ]);
 
   const [excFormOpen, setExcFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingExc, setEditingExc] = useState<AvailabilityException | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [deletingExc, setDeletingExc] = useState<AvailabilityException | null>(null);
@@ -201,7 +204,18 @@ export default function AgendasPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Agendas" description="Disponibilidad de ejecutivos y excepciones." />
+      <PageHeader
+        title="Agendas"
+        description="Disponibilidad de ejecutivos y excepciones."
+        actions={
+          isPrivileged && (
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" />
+              Importar CSV
+            </Button>
+          )
+        }
+      />
 
       {/* Disponibilidad de ejecutivos */}
       <Card>
@@ -433,6 +447,16 @@ export default function AgendasPage() {
             loading={deleteLoading}
           />
         </>
+      )}
+
+      {isPrivileged && (
+        <CsvImportDialog
+          open={importOpen}
+          title="Importar agendas (CSV)"
+          importer={schedulesImporter}
+          onClose={() => setImportOpen(false)}
+          onImported={() => exec.refetch()}
+        />
       )}
     </div>
   );

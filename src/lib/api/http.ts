@@ -152,8 +152,11 @@ async function doFetch(
   path: string,
   { method = "GET", body, auth = true, query, signal }: RequestOptions
 ): Promise<Response> {
+  // FormData (multipart): el navegador fija el Content-Type con su boundary;
+  // no serializar a JSON ni forzar la cabecera (subidas de CSV/archivos).
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   const headers: Record<string, string> = {};
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   if (auth) {
     const token = getAccessToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -162,7 +165,8 @@ async function doFetch(
     return await fetch(apiUrl(path) + buildQuery(query), {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body:
+        body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
       signal,
       credentials: "omit",
     });
