@@ -94,3 +94,23 @@ export function deactivateFinancingPlan(id: string): Promise<FinancingPlan> {
 export function cloneFinancingPlan(id: string): Promise<FinancingPlan> {
   return http.post<FinancingPlan>(`${byId(id)}/clone`);
 }
+
+/* Opciones de financiamiento de una unidad (ver flujos: financiamiento/07).
+   GET devuelve los planes asociados; PUT es REEMPLAZO TOTAL: recibe el set
+   completo de planIds que debe quedar ([] = sin planes, máx 50). */
+const unitOptionsUrl = (unitId: string) =>
+  `${ENDPOINTS.units}/${encodeURIComponent(unitId)}/financing-options`;
+
+export function getUnitFinancingOptions(
+  unitId: string,
+  signal?: AbortSignal
+): Promise<FinancingPlan[]> {
+  return http.get<FinancingPlan[]>(unitOptionsUrl(unitId), { signal });
+}
+
+export function setUnitFinancingOptions(
+  unitId: string,
+  planIds: string[]
+): Promise<FinancingPlan[]> {
+  return http.put<FinancingPlan[]>(unitOptionsUrl(unitId), { planIds });
+}

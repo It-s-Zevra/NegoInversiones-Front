@@ -16,6 +16,8 @@ import { useToast } from "@/components/ui/toast";
 import { useResource } from "@/lib/hooks/use-resource";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getUnit, deleteUnit, changeUnitStatus } from "@/lib/api/units";
+import { getUnitFinancingOptions } from "@/lib/api/financing";
+import { UnitFinancingOptionsDialog } from "@/components/units/unit-financing-options-dialog";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage } from "@/lib/api/errors";
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/lib/format";
@@ -24,9 +26,10 @@ import {
   UNIT_STATUS_META,
   UNIT_ACTION_META,
   ALLOWED_UNIT_ACTIONS,
+  FINANCING_TYPE_LABELS,
   labelFor,
 } from "@/lib/constants";
-import type { Unit, UnitAction } from "@/lib/api/types";
+import type { Unit, UnitAction, FinancingPlan } from "@/lib/api/types";
 
 const ACTION_VARIANT: Record<UnitAction, ButtonProps["variant"]> = {
   reserve: "secondary",
@@ -60,6 +63,8 @@ export default function UnitDetailPage() {
   const { can } = useAuth();
   const canWrite = can("projects:write");
   const canDelete = can("projects:delete");
+  const canReadFinancing = can("financing-plans:read");
+  const canFinancingWrite = can("financing-options:write");
 
   const fetchUnit = useCallback(
     (signal?: AbortSignal) => getUnit(id, signal),
@@ -70,7 +75,17 @@ export default function UnitDetailPage() {
     [id]
   );
 
+  const fetchOptions = useCallback(
+    (signal?: AbortSignal) =>
+      canReadFinancing
+        ? getUnitFinancingOptions(id, signal)
+        : Promise.resolve([] as FinancingPlan[]),
+    [id, canReadFinancing]
+  );
+  const options = useResource<FinancingPlan[]>(fetchOptions, [id, canReadFinancing]);
+
   const [formOpen, setFormOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<UnitAction | null>(null);
@@ -275,6 +290,45 @@ export default function UnitDetailPage() {
             </CardContent>
           </Card>
 
+          {canReadFinancing && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Opciones de financiamiento</CardTitle>
+                {canFinancingWrite && (
+                  <Button size="sm" variant="secondary" onClick={() => setOptionsOpen(true)}>
+                    <Pencil className="h-4 w-4" />
+                    Editar opciones
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {options.loading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <Skeleton key={i} className="h-5 w-full" />
+                    ))}
+                  </div>
+                ) : options.error ? (
+                  <ErrorState error={options.error} onRetry={options.refetch} />
+                ) : (options.data?.length ?? 0) === 0 ? (
+                  <p className="text-sm text-muted">Sin planes asociados.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {options.data!.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium text-foreground">{p.name}</span>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <Badge tone="neutral">{labelFor(FINANCING_TYPE_LABELS, p.type)}</Badge>
+                          {!p.isActive && <Badge tone="warning">Inactivo</Badge>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <UnitForm
             open={formOpen}
             onClose={() => setFormOpen(false)}
@@ -283,6 +337,17 @@ export default function UnitDetailPage() {
             onSaved={(u) => mutate(u)}
             onNotFound={() => router.push(`/proyectos/${unit.projectId}/unidades`)}
           />
+
+          {canFinancingWrite && (
+            <UnitFinancingOptionsDialog
+              open={optionsOpen}
+              unitId={unit.id}
+              unitCode={unit.code}
+              onClose={() => setOptionsOpen(false)}
+              onSaved={(plans) => options.mutate(plans)}
+              onUnitGone={() => router.push(`/proyectos/${unit.projectId}/unidades`)}
+            />
+          )}
 
           <ConfirmDialog
             open={deleting}
