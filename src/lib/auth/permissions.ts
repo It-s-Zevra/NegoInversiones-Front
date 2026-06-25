@@ -13,10 +13,10 @@
  * recomendación del contrato (_comunes/04 §6) es: usar el `role` para la UI de alto
  * nivel y reaccionar al 403 del backend como autoridad final (ver ErrorState → 403).
  *
- * `leads:*`: el README nuevo los documenta como permisos del panel
- * (@RequirePermissions), pero el catálogo de permisos de _comunes/04 §3 NO los
- * lista (ahí aparecen solo como api_scopes de /integration). Se siembran aquí como
- * pista de UI; confirmar el seed real con backend antes de F1.
+ * `leads:*`: confirmado con backend que son permisos del panel (tabla
+ * `permissions`, vía @RequirePermissions), no api_scopes. `leads:delete` lo tienen
+ * ADMIN y JEFE_COMERCIAL; aun así el endpoint DELETE /leads/:id (bloquear) exige
+ * además @Roles(ADMIN), por lo que la UI gatea ese borrado solo a ADMIN.
  */
 import type { UserRole } from "@/lib/api/types";
 
@@ -39,6 +39,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "sales:write",
     "leads:read",
     "leads:write",
+    "leads:delete",
     "schedules:read",
     "schedules:write",
     "schedules:delete",

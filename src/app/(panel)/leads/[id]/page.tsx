@@ -23,12 +23,13 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { getLead, deleteLead } from "@/lib/api/leads";
 import { listProjects } from "@/lib/api/projects";
 import { listUsers } from "@/lib/api/users";
+import { listRoles } from "@/lib/api/roles";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage } from "@/lib/api/errors";
 import { formatDate, formatDateTime, formatRelativeTime } from "@/lib/format";
 import { leadStatusTone } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { Lead, Paginated, Project, User } from "@/lib/api/types";
+import type { Lead, Paginated, Project, Role, User } from "@/lib/api/types";
 
 type TabKey = "qualification" | "interactions" | "appointments" | "zones" | "followups";
 const TABS: { key: TabKey; label: string }[] = [
@@ -89,10 +90,20 @@ export default function LeadDetailPage() {
   );
   const { data: usersPage } = useResource<Paginated<User>>(fetchUsers, []);
   const users = useMemo(() => usersPage?.data ?? [], [usersPage]);
-  const execOptions = useMemo(
-    () => users.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName}` })),
-    [users]
+
+  // Ejecutivos (rol EJECUTIVO_VENTAS) para el combobox de asignación.
+  const rolesFetcher = useCallback((s?: AbortSignal) => listRoles(s), []);
+  const { data: roles } = useResource<Role[]>(rolesFetcher, []);
+  const execRoleId = useMemo(
+    () => (roles ?? []).find((r) => r.code === "EJECUTIVO_VENTAS")?.id,
+    [roles]
   );
+  const execOptions = useMemo(() => {
+    const pool = execRoleId
+      ? users.filter((u) => u.roleId === execRoleId)
+      : users;
+    return pool.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }));
+  }, [users, execRoleId]);
   const execName = (uid: string | null) => {
     if (!uid) return null;
     const u = users.find((x) => x.id === uid);

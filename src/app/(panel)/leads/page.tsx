@@ -29,6 +29,7 @@ import {
 } from "@/lib/api/leads";
 import { listProjects } from "@/lib/api/projects";
 import { listUsers } from "@/lib/api/users";
+import { listRoles } from "@/lib/api/roles";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage } from "@/lib/api/errors";
 import { formatDate, formatRelativeTime } from "@/lib/format";
@@ -39,7 +40,7 @@ import {
   leadStatusTone,
   suggestionOptions,
 } from "@/lib/constants";
-import type { Lead, LeadStats, Paginated, Project, User } from "@/lib/api/types";
+import type { Lead, LeadStats, Paginated, Project, Role, User } from "@/lib/api/types";
 
 const VIEW_OPTIONS = [
   { value: "false", label: "Activos" },
@@ -84,10 +85,21 @@ export default function LeadsPage() {
   );
   const { data: usersPage } = useResource<Paginated<User>>(fetchUsers, []);
   const users = useMemo(() => usersPage?.data ?? [], [usersPage]);
-  const execOptions = useMemo(
-    () => users.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName}` })),
-    [users]
+
+  // Para asignar/filtrar conviene listar solo ejecutivos (rol EJECUTIVO_VENTAS).
+  // El filtro de /users es por roleId numérico, así que resolvemos el id desde /roles.
+  const rolesFetcher = useCallback((s?: AbortSignal) => listRoles(s), []);
+  const { data: roles } = useResource<Role[]>(rolesFetcher, []);
+  const execRoleId = useMemo(
+    () => (roles ?? []).find((r) => r.code === "EJECUTIVO_VENTAS")?.id,
+    [roles]
   );
+  const execOptions = useMemo(() => {
+    const pool = execRoleId
+      ? users.filter((u) => u.roleId === execRoleId)
+      : users;
+    return pool.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }));
+  }, [users, execRoleId]);
   const execName = useMemo(() => {
     const map = new Map(users.map((u) => [u.id, `${u.firstName} ${u.lastName}`]));
     return (id: string | null) => (id ? (map.get(id) ?? `#${id}`) : "—");

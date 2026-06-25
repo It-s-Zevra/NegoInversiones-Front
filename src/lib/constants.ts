@@ -237,14 +237,10 @@ export function labelFor<K extends string>(
 }
 
 /* ---------- Leads (CRM) ----------
- * stage/status/source/intent y el tipo/estado de cita son STRINGS LIBRES en el
- * backend (sin enum). Estas listas son SOLO sugerencias para los selects; el
- * front debe aceptar cualquier valor. Confirmar el catálogo canónico con el
- * equipo (ver reporte a backend).
+ * Catálogo canónico confirmado con backend (existen como enums pero el API NO
+ * valida con @IsEnum: el front debe aceptar cualquier valor → sugerencias).
  */
 export const LEAD_STAGE_SUGGESTIONS = [
-  "NUEVO",
-  "CALIFICADO",
   "RESERVA",
   "CUOTA_INICIAL",
   "CONTRATO",
@@ -255,40 +251,34 @@ export const LEAD_STAGE_SUGGESTIONS = [
 ] as const;
 
 export const LEAD_STATUS_SUGGESTIONS = [
+  "NUEVO",
   "ACTIVO",
-  "EN_SEGUIMIENTO",
   "CALIFICADO",
-  "HUMANO",
+  "AGENDADO",
   "GANADO",
   "FRIO",
   "PERDIDO",
 ] as const;
 
 export const LEAD_SOURCE_SUGGESTIONS = [
-  "PANEL",
-  "WHATSAPP",
-  "FACEBOOK",
-  "INSTAGRAM",
+  "TIKTOK",
   "META_ADS",
-  "WEB",
+  "WEB_FORM",
+  "SOCIAL_COMMENT",
+  "WHATSAPP_DIRECT",
   "REFERIDO",
-  "FERIA",
+  "OTRO",
 ] as const;
 
 export const LEAD_INTENT_SUGGESTIONS = [
-  "COMPRA",
-  "ALQUILER",
-  "INVERSION",
-  "COTIZACION",
-  "INFORMACION",
+  "INFORMAR",
+  "CALIFICAR",
+  "AGENDAR",
+  "CALIFICADO",
+  "HUMANO",
 ] as const;
 
-export const APPOINTMENT_TYPE_SUGGESTIONS = [
-  "VISITA_LOTE",
-  "VISITA_OBRA",
-  "REUNION",
-  "LLAMADA",
-] as const;
+export const APPOINTMENT_TYPE_SUGGESTIONS = ["VISITA_LOTE", "REUNION"] as const;
 
 export const APPOINTMENT_STATUS_SUGGESTIONS = [
   "AGENDADA",
@@ -306,14 +296,14 @@ export const LEAD_STATUS_SIDE_EFFECTS = new Set(["CALIFICADO", "HUMANO"]);
 
 /** Tonos conocidos para badges de status (fallback "neutral" para valores nuevos). */
 const LEAD_STATUS_TONES: Record<string, BadgeTone> = {
-  ACTIVO: "info",
-  EN_SEGUIMIENTO: "warning",
+  NUEVO: "info",
+  ACTIVO: "primary",
   CALIFICADO: "primary",
-  HUMANO: "primary",
+  AGENDADO: "warning",
+  HUMANO: "warning",
   GANADO: "success",
   FRIO: "neutral",
   PERDIDO: "danger",
-  CANCELADO: "danger",
 };
 
 export function leadStatusTone(status: string | null | undefined): BadgeTone {
