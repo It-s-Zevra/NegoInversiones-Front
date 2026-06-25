@@ -24,7 +24,6 @@ import { SearchInput } from "@/components/ui/search-input";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { LeadForm } from "@/components/leads/lead-form";
 import { LeadAssignDialog } from "@/components/leads/lead-assign-dialog";
 import { useToast } from "@/components/ui/toast";
 import { useList } from "@/lib/hooks/use-list";
@@ -142,8 +141,6 @@ export default function LeadsPage() {
   ]);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Lead | null>(null);
   const [assigning, setAssigning] = useState<string[] | null>(null);
   const [deleting, setDeleting] = useState<Lead | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -161,12 +158,10 @@ export default function LeadsPage() {
   }
 
   function openCreate() {
-    setEditing(null);
-    setFormOpen(true);
+    router.push("/leads/nuevo");
   }
   function openEdit(lead: Lead) {
-    setEditing(lead);
-    setFormOpen(true);
+    router.push(`/leads/${lead.id}/editar`);
   }
 
   async function confirmDelete() {
@@ -629,16 +624,6 @@ export default function LeadsPage() {
           <Pagination meta={list.meta} onPageChange={list.setPage} />
         )}
       </Card>
-
-      <LeadForm
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        lead={editing}
-        projectOptions={projectOptions}
-        executiveOptions={execOptions}
-        onSaved={() => list.refetch()}
-        onNotFound={() => list.refetch()}
-      />
 
       <LeadAssignDialog
         open={!!assigning}

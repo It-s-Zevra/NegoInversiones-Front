@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Upload, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,7 +13,6 @@ import { Field } from "@/components/ui/field";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { SaleForm } from "@/components/sales/sale-form";
 import { LeadCombobox } from "@/components/leads/lead-combobox";
 import { CsvImportDialog } from "@/components/ui/csv-import-dialog";
 import { salesImporter } from "@/lib/api/csv-import";
@@ -90,34 +89,9 @@ export default function SalesPage() {
     initialSortOrder: "DESC",
   });
 
-  const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [editing, setEditing] = useState<Sale | null>(null);
   const [deleting, setDeleting] = useState<Sale | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  function openCreate() {
-    setEditing(null);
-    setFormOpen(true);
-  }
-  function openEdit(sale: Sale) {
-    setEditing(sale);
-    setFormOpen(true);
-  }
-
-  // Abre el form si se llega con ?new=1 (botón "Nueva venta" del dashboard).
-  useEffect(() => {
-    if (
-      canCreate &&
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("new") === "1"
-    ) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- abre el form al llegar con ?new=1
-      openCreate();
-      window.history.replaceState(null, "", "/ventas");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   async function confirmDelete() {
     if (!deleting) return;
@@ -195,7 +169,7 @@ export default function SalesPage() {
           >
             <button
               type="button"
-              onClick={() => openEdit(s)}
+              onClick={() => router.push(`/ventas/${s.id}/editar`)}
               className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
               aria-label={`Editar venta #${s.id}`}
             >
@@ -226,7 +200,7 @@ export default function SalesPage() {
                 <Upload className="h-4 w-4" />
                 Importar CSV
               </Button>
-              <Button onClick={openCreate}>
+              <Button onClick={() => router.push("/ventas/nueva")}>
                 <Plus className="h-4 w-4" />
                 Registrar venta
               </Button>
@@ -309,7 +283,7 @@ export default function SalesPage() {
           emptyDescription="No hay ventas que coincidan con los filtros."
           emptyAction={
             canCreate ? (
-              <Button size="sm" onClick={openCreate}>
+              <Button size="sm" onClick={() => router.push("/ventas/nueva")}>
                 <Plus className="h-4 w-4" />
                 Registrar venta
               </Button>
@@ -338,15 +312,6 @@ export default function SalesPage() {
           <Pagination meta={list.meta} onPageChange={list.setPage} />
         )}
       </Card>
-
-      <SaleForm
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        sale={editing}
-        projectOptions={projectOptions}
-        onSaved={() => list.refetch()}
-        onNotFound={() => list.refetch()}
-      />
 
       {canCreate && (
         <CsvImportDialog

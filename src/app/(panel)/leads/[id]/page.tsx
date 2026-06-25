@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState, EmptyState } from "@/components/ui/states";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { LeadForm } from "@/components/leads/lead-form";
 import { LeadAssignDialog } from "@/components/leads/lead-assign-dialog";
 import { QualificationTab } from "@/components/leads/tabs/qualification-tab";
 import { InteractionsTab } from "@/components/leads/tabs/interactions-tab";
@@ -67,7 +66,7 @@ export default function LeadDetailPage() {
   const canSubDelete = isManager && can("leads:delete"); // sub-recursos: ADMIN/JEFE
 
   const fetchLead = useCallback((s?: AbortSignal) => getLead(id, s), [id]);
-  const { data: lead, loading, error, refetch, mutate } = useResource<Lead>(fetchLead, [id]);
+  const { data: lead, loading, error, refetch } = useResource<Lead>(fetchLead, [id]);
 
   const fetchProjects = useCallback(
     (s?: AbortSignal) =>
@@ -76,10 +75,6 @@ export default function LeadDetailPage() {
   );
   const { data: projectsPage } = useResource<Paginated<Project>>(fetchProjects, []);
   const projects = useMemo(() => projectsPage?.data ?? [], [projectsPage]);
-  const projectOptions = useMemo(
-    () => projects.map((p) => ({ value: p.id, label: p.name })),
-    [projects]
-  );
   const projectName = (pid: string | null) =>
     pid ? (projects.find((p) => p.id === pid)?.name ?? `Proyecto #${pid}`) : null;
 
@@ -111,7 +106,6 @@ export default function LeadDetailPage() {
   };
 
   const [tab, setTab] = useState<TabKey>("interactions");
-  const [formOpen, setFormOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -196,7 +190,10 @@ export default function LeadDetailPage() {
                 </Button>
               )}
               {canWrite && (
-                <Button variant="secondary" onClick={() => setFormOpen(true)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push(`/leads/${lead.id}/editar`)}
+                >
                   <Pencil className="h-4 w-4" />
                   Editar
                 </Button>
@@ -293,16 +290,6 @@ export default function LeadDetailPage() {
           {tab === "followups" && (
             <FollowupsTab leadId={lead.id} canWrite={canWrite} canDelete={canSubDelete} />
           )}
-
-          <LeadForm
-            open={formOpen}
-            onClose={() => setFormOpen(false)}
-            lead={lead}
-            projectOptions={projectOptions}
-            executiveOptions={execOptions}
-            onSaved={(l) => mutate(l)}
-            onNotFound={() => router.push("/leads")}
-          />
 
           <LeadAssignDialog
             open={assignOpen}

@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState, EmptyState } from "@/components/ui/states";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { SaleForm } from "@/components/sales/sale-form";
 import { useToast } from "@/components/ui/toast";
 import { useResource } from "@/lib/hooks/use-resource";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -48,7 +47,7 @@ export default function SaleDetailPage() {
     (signal?: AbortSignal) => getSale(id, signal),
     [id]
   );
-  const { data: sale, loading, error, refetch, mutate } = useResource<Sale>(
+  const { data: sale, loading, error, refetch } = useResource<Sale>(
     fetchSale,
     [id]
   );
@@ -66,13 +65,6 @@ export default function SaleDetailPage() {
     []
   );
   const projects = useMemo(() => projectsPage?.data ?? [], [projectsPage]);
-  const projectOptions = useMemo(() => {
-    const opts = projects.map((p) => ({ value: p.id, label: p.name }));
-    if (sale && !opts.some((o) => o.value === sale.projectId)) {
-      opts.push({ value: sale.projectId, label: `Proyecto #${sale.projectId}` });
-    }
-    return opts;
-  }, [projects, sale]);
   const projectName = (pid: string) =>
     projects.find((p) => p.id === pid)?.name ?? `Proyecto #${pid}`;
 
@@ -97,7 +89,6 @@ export default function SaleDetailPage() {
     return u ? `${u.firstName} ${u.lastName}` : `#${uid}`;
   };
 
-  const [formOpen, setFormOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -185,7 +176,10 @@ export default function SaleDetailPage() {
 
             {canManage && (
               <div className="flex items-center gap-2">
-                <Button variant="secondary" onClick={() => setFormOpen(true)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push(`/ventas/${sale.id}/editar`)}
+                >
                   <Pencil className="h-4 w-4" />
                   Editar
                 </Button>
@@ -275,15 +269,6 @@ export default function SaleDetailPage() {
               </dl>
             </CardContent>
           </Card>
-
-          <SaleForm
-            open={formOpen}
-            onClose={() => setFormOpen(false)}
-            sale={sale}
-            projectOptions={projectOptions}
-            onSaved={(s) => mutate(s)}
-            onNotFound={() => router.push("/ventas")}
-          />
 
           <ConfirmDialog
             open={deleting}

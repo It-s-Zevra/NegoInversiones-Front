@@ -17,7 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState, EmptyState } from "@/components/ui/states";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ProjectForm } from "@/components/projects/project-form";
 import { useToast } from "@/components/ui/toast";
 import { useResource } from "@/lib/hooks/use-resource";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -51,14 +50,15 @@ export default function ProjectDetailPage() {
 
   const fetchProject = useCallback(
     (signal?: AbortSignal) => getProject(id, signal),
-    [id]
+    [id],
   );
-  const { data: project, loading, error, refetch } = useResource<Project>(
-    fetchProject,
-    [id]
-  );
+  const {
+    data: project,
+    loading,
+    error,
+    refetch,
+  } = useResource<Project>(fetchProject, [id]);
 
-  const [formOpen, setFormOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -180,7 +180,10 @@ export default function ProjectDetailPage() {
                 Ver unidades
               </Button>
               {canWrite && (
-                <Button variant="secondary" onClick={() => setFormOpen(true)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push(`/proyectos/${project.id}/editar`)}
+                >
                   <Pencil className="h-4 w-4" />
                   Editar
                 </Button>
@@ -206,10 +209,7 @@ export default function ProjectDetailPage() {
                   label="Total de unidades"
                   value={formatNumber(project.totalUnits ?? null)}
                 />
-                <Row
-                  label="Descripción"
-                  value={project.description ?? "—"}
-                />
+                <Row label="Descripción" value={project.description ?? "—"} />
                 {project.metadata &&
                   Object.keys(project.metadata).length > 0 && (
                     <Row
@@ -238,14 +238,6 @@ export default function ProjectDetailPage() {
               </dl>
             </CardContent>
           </Card>
-
-          <ProjectForm
-            open={formOpen}
-            onClose={() => setFormOpen(false)}
-            project={project}
-            onSaved={() => refetch()}
-            onNotFound={() => router.push("/proyectos")}
-          />
 
           <ConfirmDialog
             open={deleting}

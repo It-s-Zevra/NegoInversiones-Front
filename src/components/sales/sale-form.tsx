@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Dialog } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, type SelectOption } from "@/components/ui/select";
@@ -76,8 +76,7 @@ function fkField(message: string): keyof SaleFormState | null {
 }
 
 interface SaleFormProps {
-  open: boolean;
-  onClose: () => void;
+  onCancel: () => void;
   sale?: Sale | null;
   projectOptions: SelectOption[];
   onSaved: (sale: Sale) => void;
@@ -117,8 +116,7 @@ function FormSection({
 }
 
 export function SaleForm({
-  open,
-  onClose,
+  onCancel,
   sale,
   projectOptions,
   onSaved,
@@ -145,15 +143,13 @@ export function SaleForm({
   // Ejecutivos = usuarios (selector en vez de pedir el ID a mano).
   const usersFetcher = useCallback(
     (signal?: AbortSignal) =>
-      open
-        ? listUsers(
-            { page: 1, limit: 100, sortBy: "firstName", sortOrder: "ASC" },
-            signal
-          )
-        : Promise.resolve(null),
-    [open]
+      listUsers(
+        { page: 1, limit: 100, sortBy: "firstName", sortOrder: "ASC" },
+        signal
+      ),
+    []
   );
-  const usersRes = useResource<Paginated<User> | null>(usersFetcher, [open]);
+  const usersRes = useResource<Paginated<User> | null>(usersFetcher, []);
   const executiveOptions = useMemo<SelectOption[]>(() => {
     const opts = (usersRes.data?.data ?? []).map((u) => ({
       value: u.id,
@@ -169,16 +165,16 @@ export function SaleForm({
   const projectId = form.projectId;
   const unitsFetcher = useCallback(
     (signal?: AbortSignal) =>
-      open && projectId
+      projectId
         ? listProjectUnits(
             projectId,
             { page: 1, limit: 100, sortBy: "code", sortOrder: "ASC" },
             signal
           )
         : Promise.resolve(null),
-    [open, projectId]
+    [projectId]
   );
-  const unitsRes = useResource<Paginated<Unit> | null>(unitsFetcher, [open, projectId]);
+  const unitsRes = useResource<Paginated<Unit> | null>(unitsFetcher, [projectId]);
   const unitOptions = useMemo<SelectOption[]>(() => {
     const opts = (unitsRes.data?.data ?? []).map((u) => ({
       value: u.id,
@@ -191,8 +187,7 @@ export function SaleForm({
   }, [unitsRes.data, sale]);
 
   useEffect(() => {
-    if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- precarga del formulario al abrir
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- precarga del formulario según la entidad
     setErrors({});
     setForm(
       sale
@@ -212,7 +207,7 @@ export function SaleForm({
           }
         : emptyForm
     );
-  }, [open, sale]);
+  }, [sale]);
 
   function set<K extends keyof SaleFormState>(key: K, value: SaleFormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -300,7 +295,6 @@ export function SaleForm({
         description: `#${saved.id}`,
       });
       onSaved(saved);
-      onClose();
     } catch (err) {
       if (err instanceof ApiException && err.statusCode === 400) {
         const { fieldErrors, rest } = mapValidationErrors(
@@ -319,7 +313,6 @@ export function SaleForm({
         toast({ tone: "error", title: errorMessage(err) });
       } else if (err instanceof ApiException && err.statusCode === 404) {
         toast({ tone: "error", title: errorMessage(err) });
-        onClose();
         onNotFound?.();
       } else {
         toast({
@@ -340,283 +333,273 @@ export function SaleForm({
       : "Sin unidad";
 
   return (
-    <Dialog
-      open={open}
-      onClose={submitting ? () => {} : onClose}
-      size="lg"
-      title={isEdit ? "Editar venta" : "Registrar venta"}
-      description={
-        isEdit
-          ? "Actualiza el estado y las condiciones de la venta."
-          : "Completa los datos del cierre. Solo el lead, el proyecto y el precio son obligatorios."
-      }
-      footer={
-        <>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={onClose}
-            disabled={submitting}
+    <form id="sale-form" onSubmit={handleSubmit} noValidate className="space-y-6">
+      <Card>
+        <CardContent className="space-y-8 p-5 sm:p-6">
+          <FormSection
+            icon={Users}
+            title="Cliente y proyecto"
+            description="A quién y qué se le vende."
           >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            form="sale-form"
-            size="sm"
-            disabled={submitting}
-            aria-busy={submitting}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field
+                label="Lead"
+                htmlFor="s-lead"
+                required={!isEdit}
+                error={errors.leadId}
+                hint={
+                  isEdit
+                    ? "No se puede cambiar tras registrar."
+                    : "Busca el lead en el CRM (no se teclea el id)."
+                }
+              >
+                <LeadCombobox
+                  id="s-lead"
+                  value={form.leadId}
+                  onChange={(leadId) => set("leadId", leadId)}
+                  invalid={!!errors.leadId}
+                  aria-describedby={
+                    errors.leadId ? "s-lead-error" : "s-lead-hint"
+                  }
+                  disabled={isEdit}
+                />
+              </Field>
+              <Field
+                label="Proyecto"
+                htmlFor="s-project"
+                required={!isEdit}
+                error={errors.projectId}
+                hint={
+                  isEdit
+                    ? "No se puede cambiar tras registrar."
+                    : resolvedProjectOptions.length === 0
+                      ? "No hay proyectos disponibles. Recarga la página."
+                      : "Define las unidades disponibles abajo."
+                }
+              >
+                <Select
+                  id="s-project"
+                  options={resolvedProjectOptions}
+                  placeholder="Selecciona un proyecto"
+                  value={form.projectId}
+                  onChange={(e) => onProjectChange(e.target.value)}
+                  invalid={!!errors.projectId}
+                  aria-describedby={
+                    errors.projectId ? "s-project-error" : "s-project-hint"
+                  }
+                  disabled={isEdit}
+                />
+              </Field>
+              <Field
+                label="Unidad"
+                htmlFor="s-unit"
+                error={errors.unitId}
+                hint={
+                  !form.projectId
+                    ? "Elige un proyecto para ver sus unidades."
+                    : undefined
+                }
+              >
+                <Select
+                  id="s-unit"
+                  options={unitOptions}
+                  placeholder={unitPlaceholder}
+                  value={form.unitId}
+                  onChange={(e) => set("unitId", e.target.value)}
+                  invalid={!!errors.unitId}
+                  aria-describedby={
+                    errors.unitId
+                      ? "s-unit-error"
+                      : !form.projectId
+                        ? "s-unit-hint"
+                        : undefined
+                  }
+                  disabled={!form.projectId}
+                />
+              </Field>
+              <Field
+                label="Ejecutivo"
+                htmlFor="s-exec"
+                error={errors.executiveId}
+                hint="Responsable del cierre. Opcional."
+              >
+                <Select
+                  id="s-exec"
+                  options={executiveOptions}
+                  placeholder={usersRes.loading ? "Cargando…" : "Sin asignar"}
+                  value={form.executiveId}
+                  onChange={(e) => set("executiveId", e.target.value)}
+                  invalid={!!errors.executiveId}
+                  aria-describedby={
+                    errors.executiveId ? "s-exec-error" : "s-exec-hint"
+                  }
+                />
+              </Field>
+            </div>
+          </FormSection>
+
+          <div className="border-t border-border" />
+
+          <FormSection
+            icon={Banknote}
+            title="Condiciones comerciales"
+            description="Precio, financiamiento y estado de la venta."
           >
-            {submitting && <Spinner />}
-            {isEdit ? "Guardar cambios" : "Registrar venta"}
-          </Button>
-        </>
-      }
-    >
-      <form id="sale-form" onSubmit={handleSubmit} noValidate className="space-y-8">
-        <FormSection
-          icon={Users}
-          title="Cliente y proyecto"
-          description="A quién y qué se le vende."
-        >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field
-              label="Lead"
-              htmlFor="s-lead"
-              required={!isEdit}
-              error={errors.leadId}
-              hint={
-                isEdit
-                  ? "No se puede cambiar tras registrar."
-                  : "Busca el lead en el CRM (no se teclea el id)."
-              }
-            >
-              <LeadCombobox
-                id="s-lead"
-                value={form.leadId}
-                onChange={(leadId) => set("leadId", leadId)}
-                invalid={!!errors.leadId}
-                aria-describedby={errors.leadId ? "s-lead-error" : "s-lead-hint"}
-                disabled={isEdit}
-              />
-            </Field>
-            <Field
-              label="Proyecto"
-              htmlFor="s-project"
-              required={!isEdit}
-              error={errors.projectId}
-              hint={
-                isEdit
-                  ? "No se puede cambiar tras registrar."
-                  : resolvedProjectOptions.length === 0
-                    ? "No hay proyectos disponibles. Recarga la página."
-                    : "Define las unidades disponibles abajo."
-              }
-            >
-              <Select
-                id="s-project"
-                options={resolvedProjectOptions}
-                placeholder="Selecciona un proyecto"
-                value={form.projectId}
-                onChange={(e) => onProjectChange(e.target.value)}
-                invalid={!!errors.projectId}
-                aria-describedby={
-                  errors.projectId
-                    ? "s-project-error"
-                    : "s-project-hint"
-                }
-                disabled={isEdit}
-              />
-            </Field>
-            <Field
-              label="Unidad"
-              htmlFor="s-unit"
-              error={errors.unitId}
-              hint={
-                !form.projectId
-                  ? "Elige un proyecto para ver sus unidades."
-                  : undefined
-              }
-            >
-              <Select
-                id="s-unit"
-                options={unitOptions}
-                placeholder={unitPlaceholder}
-                value={form.unitId}
-                onChange={(e) => set("unitId", e.target.value)}
-                invalid={!!errors.unitId}
-                aria-describedby={
-                  errors.unitId
-                    ? "s-unit-error"
-                    : !form.projectId
-                      ? "s-unit-hint"
-                      : undefined
-                }
-                disabled={!form.projectId}
-              />
-            </Field>
-            <Field
-              label="Ejecutivo"
-              htmlFor="s-exec"
-              error={errors.executiveId}
-              hint="Responsable del cierre. Opcional."
-            >
-              <Select
-                id="s-exec"
-                options={executiveOptions}
-                placeholder={usersRes.loading ? "Cargando…" : "Sin asignar"}
-                value={form.executiveId}
-                onChange={(e) => set("executiveId", e.target.value)}
-                invalid={!!errors.executiveId}
-                aria-describedby={
-                  errors.executiveId ? "s-exec-error" : "s-exec-hint"
-                }
-              />
-            </Field>
-          </div>
-        </FormSection>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Estado" htmlFor="s-status">
+                <Select
+                  id="s-status"
+                  options={STATUS_OPTIONS}
+                  value={form.status}
+                  onChange={(e) => set("status", e.target.value as SaleStatus)}
+                />
+              </Field>
+              <Field
+                label="Precio total"
+                htmlFor="s-total"
+                required={!isEdit}
+                error={errors.totalPrice}
+              >
+                <Input
+                  id="s-total"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.totalPrice}
+                  onChange={(e) => set("totalPrice", e.target.value)}
+                  invalid={!!errors.totalPrice}
+                  aria-describedby={
+                    errors.totalPrice ? "s-total-error" : undefined
+                  }
+                  placeholder="25000"
+                />
+              </Field>
+              <Field label="Moneda" htmlFor="s-currency" error={errors.currency}>
+                <Input
+                  id="s-currency"
+                  maxLength={3}
+                  value={form.currency}
+                  onChange={(e) => set("currency", e.target.value.toUpperCase())}
+                  invalid={!!errors.currency}
+                  aria-describedby={
+                    errors.currency ? "s-currency-error" : undefined
+                  }
+                  placeholder="USD"
+                />
+              </Field>
+            </div>
 
-        <div className="border-t border-border" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field
+                label="Cuota inicial"
+                htmlFor="s-down"
+                error={errors.downPayment}
+                hint="Pago de entrada, si aplica."
+              >
+                <Input
+                  id="s-down"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.downPayment}
+                  onChange={(e) => set("downPayment", e.target.value)}
+                  invalid={!!errors.downPayment}
+                  aria-describedby={
+                    errors.downPayment ? "s-down-error" : "s-down-hint"
+                  }
+                  placeholder="5000"
+                />
+              </Field>
+              <Field label="Fecha de contrato" htmlFor="s-date">
+                <Input
+                  id="s-date"
+                  type="date"
+                  value={form.contractDate}
+                  onChange={(e) => set("contractDate", e.target.value)}
+                />
+              </Field>
+            </div>
 
-        <FormSection
-          icon={Banknote}
-          title="Condiciones comerciales"
-          description="Precio, financiamiento y estado de la venta."
-        >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Field label="Estado" htmlFor="s-status">
-              <Select
-                id="s-status"
-                options={STATUS_OPTIONS}
-                value={form.status}
-                onChange={(e) => set("status", e.target.value as SaleStatus)}
-              />
-            </Field>
-            <Field
-              label="Precio total"
-              htmlFor="s-total"
-              required={!isEdit}
-              error={errors.totalPrice}
-            >
-              <Input
-                id="s-total"
-                type="number"
-                min={0}
-                step="0.01"
-                value={form.totalPrice}
-                onChange={(e) => set("totalPrice", e.target.value)}
-                invalid={!!errors.totalPrice}
-                aria-describedby={errors.totalPrice ? "s-total-error" : undefined}
-                placeholder="25000"
-              />
-            </Field>
-            <Field label="Moneda" htmlFor="s-currency" error={errors.currency}>
-              <Input
-                id="s-currency"
-                maxLength={3}
-                value={form.currency}
-                onChange={(e) => set("currency", e.target.value.toUpperCase())}
-                invalid={!!errors.currency}
-                aria-describedby={errors.currency ? "s-currency-error" : undefined}
-                placeholder="USD"
-              />
-            </Field>
-          </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field
+                label="Plazo (meses)"
+                htmlFor="s-term"
+                error={errors.financingTermMonths}
+                hint="Cantidad de cuotas del financiamiento."
+              >
+                <Input
+                  id="s-term"
+                  type="number"
+                  min={0}
+                  value={form.financingTermMonths}
+                  onChange={(e) => set("financingTermMonths", e.target.value)}
+                  invalid={!!errors.financingTermMonths}
+                  aria-describedby={
+                    errors.financingTermMonths ? "s-term-error" : "s-term-hint"
+                  }
+                  placeholder="60"
+                />
+              </Field>
+              <Field
+                label="Tasa de interés (%)"
+                htmlFor="s-rate"
+                error={errors.interestRate}
+              >
+                <Input
+                  id="s-rate"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.interestRate}
+                  onChange={(e) => set("interestRate", e.target.value)}
+                  invalid={!!errors.interestRate}
+                  aria-describedby={
+                    errors.interestRate ? "s-rate-error" : undefined
+                  }
+                  placeholder="12.5"
+                />
+              </Field>
+            </div>
+          </FormSection>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field
-              label="Cuota inicial"
-              htmlFor="s-down"
-              error={errors.downPayment}
-              hint="Pago de entrada, si aplica."
-            >
-              <Input
-                id="s-down"
-                type="number"
-                min={0}
-                step="0.01"
-                value={form.downPayment}
-                onChange={(e) => set("downPayment", e.target.value)}
-                invalid={!!errors.downPayment}
-                aria-describedby={
-                  errors.downPayment ? "s-down-error" : "s-down-hint"
-                }
-                placeholder="5000"
-              />
-            </Field>
-            <Field label="Fecha de contrato" htmlFor="s-date">
-              <Input
-                id="s-date"
-                type="date"
-                value={form.contractDate}
-                onChange={(e) => set("contractDate", e.target.value)}
-              />
-            </Field>
-          </div>
+          <div className="border-t border-border" />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field
-              label="Plazo (meses)"
-              htmlFor="s-term"
-              error={errors.financingTermMonths}
-              hint="Cantidad de cuotas del financiamiento."
-            >
-              <Input
-                id="s-term"
-                type="number"
-                min={0}
-                value={form.financingTermMonths}
-                onChange={(e) => set("financingTermMonths", e.target.value)}
-                invalid={!!errors.financingTermMonths}
-                aria-describedby={
-                  errors.financingTermMonths ? "s-term-error" : "s-term-hint"
-                }
-                placeholder="60"
-              />
-            </Field>
-            <Field
-              label="Tasa de interés (%)"
-              htmlFor="s-rate"
-              error={errors.interestRate}
-            >
-              <Input
-                id="s-rate"
-                type="number"
-                min={0}
-                step="0.01"
-                value={form.interestRate}
-                onChange={(e) => set("interestRate", e.target.value)}
-                invalid={!!errors.interestRate}
-                aria-describedby={errors.interestRate ? "s-rate-error" : undefined}
-                placeholder="12.5"
-              />
-            </Field>
-          </div>
-        </FormSection>
-
-        <div className="border-t border-border" />
-
-        <FormSection
-          icon={FileText}
-          title="Acuerdos"
-          description="Condiciones especiales o notas del cierre."
-        >
-          <Field
-            label="Detalle"
-            htmlFor="s-agreements"
-            hint="Por ejemplo: plazos de entrega, descuentos o compromisos pactados."
+          <FormSection
+            icon={FileText}
+            title="Acuerdos"
+            description="Condiciones especiales o notas del cierre."
           >
-            <Textarea
-              id="s-agreements"
-              value={form.agreements}
-              onChange={(e) => set("agreements", e.target.value)}
-              aria-describedby="s-agreements-hint"
-              placeholder="Incluye entrega de llaves en 30 días."
-            />
-          </Field>
-        </FormSection>
-      </form>
-    </Dialog>
+            <Field
+              label="Detalle"
+              htmlFor="s-agreements"
+              hint="Por ejemplo: plazos de entrega, descuentos o compromisos pactados."
+            >
+              <Textarea
+                id="s-agreements"
+                value={form.agreements}
+                onChange={(e) => set("agreements", e.target.value)}
+                aria-describedby="s-agreements-hint"
+                placeholder="Incluye entrega de llaves en 30 días."
+              />
+            </Field>
+          </FormSection>
+        </CardContent>
+      </Card>
+
+      <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t border-border bg-app/85 px-1 py-3 backdrop-blur">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={submitting} aria-busy={submitting}>
+          {submitting && <Spinner />}
+          {isEdit ? "Guardar cambios" : "Registrar venta"}
+        </Button>
+      </div>
+    </form>
   );
 }

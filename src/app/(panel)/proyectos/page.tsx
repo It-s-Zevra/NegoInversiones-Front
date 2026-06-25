@@ -12,7 +12,6 @@ import { Select } from "@/components/ui/select";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ProjectForm } from "@/components/projects/project-form";
 import { useToast } from "@/components/ui/toast";
 import { useList } from "@/lib/hooks/use-list";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -55,19 +54,8 @@ export default function ProjectsPage() {
     initialSortOrder: "DESC",
   });
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  function openCreate() {
-    setEditing(null);
-    setFormOpen(true);
-  }
-  function openEdit(project: Project) {
-    setEditing(project);
-    setFormOpen(true);
-  }
 
   async function confirmDelete() {
     if (!deleting) return;
@@ -103,14 +91,18 @@ export default function ProjectsPage() {
       render: (p) => (
         <div>
           <p className="font-medium text-foreground">{p.name}</p>
-          <p className="text-xs text-muted">{labelFor(BRAND_LABELS, p.brand)}</p>
+          <p className="text-xs text-muted">
+            {labelFor(BRAND_LABELS, p.brand)}
+          </p>
         </div>
       ),
     },
     {
       key: "type",
       header: "Tipo",
-      render: (p) => <Badge tone="neutral">{labelFor(UNIT_TYPE_LABELS, p.type)}</Badge>,
+      render: (p) => (
+        <Badge tone="neutral">{labelFor(UNIT_TYPE_LABELS, p.type)}</Badge>
+      ),
     },
     {
       key: "city",
@@ -152,7 +144,7 @@ export default function ProjectsPage() {
             {canWrite && (
               <button
                 type="button"
-                onClick={() => openEdit(p)}
+                onClick={() => router.push(`/proyectos/${p.id}/editar`)}
                 className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
                 aria-label={`Editar ${p.name}`}
               >
@@ -181,7 +173,7 @@ export default function ProjectsPage() {
         description="Loteamientos y viviendas de NegoInversiones."
         actions={
           canWrite && (
-            <Button onClick={openCreate}>
+            <Button onClick={() => router.push("/proyectos/nuevo")}>
               <Plus className="h-4 w-4" />
               Nuevo proyecto
             </Button>
@@ -243,7 +235,7 @@ export default function ProjectsPage() {
           emptyDescription="No hay proyectos que coincidan con los filtros."
           emptyAction={
             canWrite ? (
-              <Button size="sm" onClick={openCreate}>
+              <Button size="sm" onClick={() => router.push("/proyectos/nuevo")}>
                 <Plus className="h-4 w-4" />
                 Nuevo proyecto
               </Button>
@@ -257,7 +249,9 @@ export default function ProjectsPage() {
                   {labelFor(BRAND_LABELS, p.brand)} · {p.city ?? "—"}
                 </p>
                 <div className="mt-1.5 flex items-center gap-1.5">
-                  <Badge tone="neutral">{labelFor(UNIT_TYPE_LABELS, p.type)}</Badge>
+                  <Badge tone="neutral">
+                    {labelFor(UNIT_TYPE_LABELS, p.type)}
+                  </Badge>
                   {p.isActive ? (
                     <Badge tone="success" dot>
                       Activo
@@ -277,13 +271,6 @@ export default function ProjectsPage() {
           <Pagination meta={list.meta} onPageChange={list.setPage} />
         )}
       </Card>
-
-      <ProjectForm
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        project={editing}
-        onSaved={() => list.refetch()}
-      />
 
       <ConfirmDialog
         open={!!deleting}
