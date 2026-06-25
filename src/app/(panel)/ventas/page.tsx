@@ -14,6 +14,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SaleForm } from "@/components/sales/sale-form";
+import { LeadCombobox } from "@/components/leads/lead-combobox";
 import { CsvImportDialog } from "@/components/ui/csv-import-dialog";
 import { salesImporter } from "@/lib/api/csv-import";
 import { useToast } from "@/components/ui/toast";
@@ -22,11 +23,12 @@ import { useResource } from "@/lib/hooks/use-resource";
 import { useAuth } from "@/lib/auth/auth-context";
 import { listSales, deleteSale } from "@/lib/api/sales";
 import { listProjects } from "@/lib/api/projects";
+import { listUsers } from "@/lib/api/users";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage } from "@/lib/api/errors";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { SALE_STATUS_META } from "@/lib/constants";
-import type { Paginated, Project, Sale, SaleStatus } from "@/lib/api/types";
+import type { Paginated, Project, Sale, SaleStatus, User } from "@/lib/api/types";
 
 const STATUS_FILTER = [
   { value: "", label: "Todos los estados" },
@@ -66,6 +68,22 @@ export default function SalesPage() {
     const map = new Map(projects.map((p) => [p.id, p.name]));
     return (id: string) => map.get(id) ?? `Proyecto #${id}`;
   }, [projects]);
+
+  // Usuarios para el filtro de ejecutivo y para resolver nombres.
+  const fetchUsers = useCallback(
+    (signal?: AbortSignal) =>
+      listUsers({ page: 1, limit: 100, sortBy: "firstName", sortOrder: "ASC" }, signal),
+    []
+  );
+  const { data: usersPage } = useResource<Paginated<User>>(fetchUsers, []);
+  const execOptions = useMemo(
+    () =>
+      (usersPage?.data ?? []).map((u) => ({
+        value: u.id,
+        label: `${u.firstName} ${u.lastName}`,
+      })),
+    [usersPage]
+  );
 
   const list = useList<Sale>(listSales, {
     initialSortBy: "createdAt",
@@ -231,12 +249,10 @@ export default function SalesPage() {
           />
         </Field>
         <Field label="Lead" htmlFor="f-lead">
-          <Input
+          <LeadCombobox
             id="f-lead"
-            inputMode="numeric"
             value={list.filters.leadId ?? ""}
-            onChange={(e) => list.setFilter("leadId", e.target.value)}
-            placeholder="ID del lead"
+            onChange={(leadId) => list.setFilter("leadId", leadId)}
           />
         </Field>
         <Field label="Proyecto" htmlFor="f-project">
@@ -251,12 +267,11 @@ export default function SalesPage() {
           />
         </Field>
         <Field label="Ejecutivo" htmlFor="f-exec">
-          <Input
+          <Select
             id="f-exec"
-            inputMode="numeric"
+            options={[{ value: "", label: "Todos los ejecutivos" }, ...execOptions]}
             value={list.filters.executiveId ?? ""}
             onChange={(e) => list.setFilter("executiveId", e.target.value)}
-            placeholder="ID del ejecutivo"
           />
         </Field>
         <Field label="Contrato desde" htmlFor="f-from">

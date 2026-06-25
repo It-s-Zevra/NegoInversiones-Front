@@ -16,11 +16,13 @@ import { useResource } from "@/lib/hooks/use-resource";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getSale, deleteSale } from "@/lib/api/sales";
 import { listProjects } from "@/lib/api/projects";
+import { getLead } from "@/lib/api/leads";
+import { listUsers } from "@/lib/api/users";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage } from "@/lib/api/errors";
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import { SALE_STATUS_META } from "@/lib/constants";
-import type { Paginated, Project, Sale } from "@/lib/api/types";
+import type { Lead, Paginated, Project, Sale, User } from "@/lib/api/types";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -73,6 +75,27 @@ export default function SaleDetailPage() {
   }, [projects, sale]);
   const projectName = (pid: string) =>
     projects.find((p) => p.id === pid)?.name ?? `Proyecto #${pid}`;
+
+  // Resolver nombres legibles (lead + ejecutivo) en vez de ids crudos.
+  const leadId = sale?.leadId;
+  const fetchLead = useCallback(
+    (signal?: AbortSignal) => (leadId ? getLead(leadId, signal) : Promise.resolve(null)),
+    [leadId]
+  );
+  const { data: lead } = useResource<Lead | null>(fetchLead, [leadId]);
+  const leadName = lead ? (lead.full_name ?? lead.phone) : sale?.leadId;
+
+  const fetchUsers = useCallback(
+    (signal?: AbortSignal) =>
+      listUsers({ page: 1, limit: 100, sortBy: "firstName", sortOrder: "ASC" }, signal),
+    []
+  );
+  const { data: usersPage } = useResource<Paginated<User>>(fetchUsers, []);
+  const execName = (uid: string | null | undefined) => {
+    if (!uid) return "—";
+    const u = (usersPage?.data ?? []).find((x) => x.id === uid);
+    return u ? `${u.firstName} ${u.lastName}` : `#${uid}`;
+  };
 
   const [formOpen, setFormOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -206,8 +229,18 @@ export default function SaleDetailPage() {
                     )
                   }
                 />
-                <Row label="Lead" value={sale.leadId} />
-                <Row label="Ejecutivo" value={sale.executiveId ?? "—"} />
+                <Row
+                  label="Lead"
+                  value={
+                    <Link
+                      href={`/leads/${sale.leadId}`}
+                      className="text-primary hover:underline"
+                    >
+                      {leadName}
+                    </Link>
+                  }
+                />
+                <Row label="Ejecutivo" value={execName(sale.executiveId)} />
                 <Row
                   label="Precio total"
                   value={formatCurrency(sale.totalPrice, sale.currency)}

@@ -20,6 +20,7 @@ import {
 } from "@/lib/api/sales";
 import { listUsers } from "@/lib/api/users";
 import { listProjectUnits } from "@/lib/api/units";
+import { LeadCombobox } from "@/components/leads/lead-combobox";
 import { SALE_STATUS_META } from "@/lib/constants";
 import type { Sale, SaleStatus, User, Unit, Paginated } from "@/lib/api/types";
 
@@ -349,18 +350,16 @@ export function SaleForm({
             hint={
               isEdit
                 ? "No se puede cambiar tras registrar."
-                : "ID del lead (proviene del CRM/agente)."
+                : "Busca el lead en el CRM (no se teclea el id)."
             }
           >
-            <Input
+            <LeadCombobox
               id="s-lead"
-              inputMode="numeric"
               value={form.leadId}
-              onChange={(e) => set("leadId", e.target.value)}
+              onChange={(leadId) => set("leadId", leadId)}
               invalid={!!errors.leadId}
               aria-describedby={errors.leadId ? "s-lead-error" : "s-lead-hint"}
               disabled={isEdit}
-              placeholder="120"
             />
           </Field>
           <Field
