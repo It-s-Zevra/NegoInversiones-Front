@@ -2,7 +2,16 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, RotateCcw, UserPlus } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  RotateCcw,
+  UserPlus,
+  X,
+  Users,
+  Filter,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -213,9 +222,11 @@ export default function LeadsPage() {
       header: "Lead",
       sortKey: "full_name",
       render: (l) => (
-        <div>
-          <p className="font-medium text-foreground">{l.full_name ?? "—"}</p>
-          <p className="text-xs text-muted">{l.phone}</p>
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">
+            {l.full_name ?? "Sin nombre"}
+          </p>
+          <p className="truncate text-xs text-muted">{l.phone}</p>
         </div>
       ),
     },
@@ -223,7 +234,12 @@ export default function LeadsPage() {
       key: "stage",
       header: "Etapa",
       sortKey: "stage",
-      render: (l) => (l.stage ? <Badge tone="neutral">{l.stage}</Badge> : "—"),
+      render: (l) =>
+        l.stage ? (
+          <Badge tone="neutral">{l.stage}</Badge>
+        ) : (
+          <span className="text-subtle">—</span>
+        ),
     },
     {
       key: "status",
@@ -235,21 +251,29 @@ export default function LeadsPage() {
             {l.status}
           </Badge>
         ) : (
-          "—"
+          <span className="text-subtle">—</span>
         ),
     },
     {
       key: "exec",
       header: "Ejecutivo",
-      render: (l) => <span className="text-muted">{execName(l.assigned_user_id)}</span>,
+      render: (l) =>
+        l.assigned_user_id ? (
+          <span className="text-foreground">{execName(l.assigned_user_id)}</span>
+        ) : (
+          <span className="text-subtle">Sin asignar</span>
+        ),
     },
     {
       key: "last",
       header: "Último contacto",
       sortKey: "last_contact_at",
-      render: (l) => (
-        <span className="text-muted">{formatRelativeTime(l.last_contact_at)}</span>
-      ),
+      render: (l) =>
+        l.last_contact_at ? (
+          <span className="text-muted">{formatRelativeTime(l.last_contact_at)}</span>
+        ) : (
+          <span className="text-subtle">Sin contacto</span>
+        ),
     },
     {
       key: "actions",
@@ -328,126 +352,225 @@ export default function LeadsPage() {
       {/* KPIs */}
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Card className="p-4">
-            <p className="text-xs text-subtle">Total</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{stats.total}</p>
+          <Card className="flex flex-col justify-between bg-primary p-4 text-primary-foreground shadow-pop">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 opacity-80" />
+              <p className="text-xs font-medium uppercase tracking-wide opacity-90">
+                Total de leads
+              </p>
+            </div>
+            <p className="mt-3 font-display text-3xl font-semibold leading-none">
+              {stats.total}
+            </p>
           </Card>
           {Object.entries(stats.byStatus)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
-            .map(([k, v]) => (
-              <Card key={k} className="p-4">
-                <p className="truncate text-xs text-subtle">{k}</p>
-                <p className="mt-1 text-2xl font-semibold text-foreground">{v}</p>
-              </Card>
-            ))}
+            .map(([k, v]) => {
+              const pct =
+                stats.total > 0 ? Math.round((v / stats.total) * 100) : 0;
+              return (
+                <Card key={k} className="flex flex-col justify-between p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge tone={leadStatusTone(k)} dot>
+                      {k}
+                    </Badge>
+                    <span className="text-xs text-subtle">{pct}%</span>
+                  </div>
+                  <p className="mt-3 font-display text-3xl font-semibold leading-none text-foreground">
+                    {v}
+                  </p>
+                </Card>
+              );
+            })}
         </div>
       )}
 
       {/* Filtros */}
-      <div className="space-y-3">
-        <SearchInput
-          value={list.search}
-          onChange={list.setSearch}
-          placeholder="Buscar por nombre, teléfono o email…"
-        />
-        <div
-          role="group"
-          aria-label="Filtros"
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
-        >
-          <Field label="Vista" htmlFor="f-view">
-            <Select
-              id="f-view"
-              options={VIEW_OPTIONS}
-              value={view}
-              onChange={(e) => {
-                clearSelection();
-                list.setFilter("include_deleted", e.target.value);
-              }}
-            />
-          </Field>
-          <Field label="Etapa" htmlFor="f-stage">
-            <Select
-              id="f-stage"
-              options={[
-                { value: "", label: "Todas las etapas" },
-                ...suggestionOptions(LEAD_STAGE_SUGGESTIONS, list.filters.stage),
-              ]}
-              value={list.filters.stage ?? ""}
-              onChange={(e) => list.setFilter("stage", e.target.value)}
-            />
-          </Field>
-          <Field label="Estado" htmlFor="f-status">
-            <Select
-              id="f-status"
-              options={[
-                { value: "", label: "Todos los estados" },
-                ...suggestionOptions(LEAD_STATUS_SUGGESTIONS, list.filters.status),
-              ]}
-              value={list.filters.status ?? ""}
-              onChange={(e) => list.setFilter("status", e.target.value)}
-            />
-          </Field>
-          <Field label="Fuente" htmlFor="f-source">
-            <Select
-              id="f-source"
-              options={[
-                { value: "", label: "Todas las fuentes" },
-                ...suggestionOptions(LEAD_SOURCE_SUGGESTIONS, list.filters.source),
-              ]}
-              value={list.filters.source ?? ""}
-              onChange={(e) => list.setFilter("source", e.target.value)}
-            />
-          </Field>
-          <Field label="Ejecutivo" htmlFor="f-exec">
-            <Select
-              id="f-exec"
-              options={[{ value: "", label: "Todos los ejecutivos" }, ...execOptions]}
-              value={list.filters.assigned_user_id ?? ""}
-              onChange={(e) => list.setFilter("assigned_user_id", e.target.value)}
-            />
-          </Field>
-          <Field label="Proyecto" htmlFor="f-project">
-            <Select
-              id="f-project"
-              options={[{ value: "", label: "Todos los proyectos" }, ...projectOptions]}
-              value={list.filters.project_id ?? ""}
-              onChange={(e) => list.setFilter("project_id", e.target.value)}
-            />
-          </Field>
-          <Field label="Desde" htmlFor="f-from">
-            <Input
-              id="f-from"
-              type="date"
-              value={list.filters.date_from ?? ""}
-              onChange={(e) => list.setFilter("date_from", e.target.value)}
-            />
-          </Field>
-          <Field label="Hasta" htmlFor="f-to">
-            <Input
-              id="f-to"
-              type="date"
-              value={list.filters.date_to ?? ""}
-              onChange={(e) => list.setFilter("date_to", e.target.value)}
-            />
-          </Field>
+      <Card className="p-4 sm:p-5">
+        <div className="space-y-4">
+          <SearchInput
+            value={list.search}
+            onChange={list.setSearch}
+            placeholder="Buscar por nombre, teléfono o email…"
+          />
+
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-subtle">
+            <Filter className="h-3.5 w-3.5" />
+            Filtros
+          </div>
+
+          <div
+            role="group"
+            aria-label="Filtros"
+            className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            <Field label="Vista" htmlFor="f-view">
+              <Select
+                id="f-view"
+                options={VIEW_OPTIONS}
+                value={view}
+                onChange={(e) => {
+                  clearSelection();
+                  list.setFilter("include_deleted", e.target.value);
+                }}
+              />
+            </Field>
+            <Field label="Etapa" htmlFor="f-stage">
+              <Select
+                id="f-stage"
+                options={[
+                  { value: "", label: "Todas las etapas" },
+                  ...suggestionOptions(LEAD_STAGE_SUGGESTIONS, list.filters.stage),
+                ]}
+                value={list.filters.stage ?? ""}
+                onChange={(e) => list.setFilter("stage", e.target.value)}
+              />
+            </Field>
+            <Field label="Estado" htmlFor="f-status">
+              <Select
+                id="f-status"
+                options={[
+                  { value: "", label: "Todos los estados" },
+                  ...suggestionOptions(LEAD_STATUS_SUGGESTIONS, list.filters.status),
+                ]}
+                value={list.filters.status ?? ""}
+                onChange={(e) => list.setFilter("status", e.target.value)}
+              />
+            </Field>
+            <Field label="Fuente" htmlFor="f-source">
+              <Select
+                id="f-source"
+                options={[
+                  { value: "", label: "Todas las fuentes" },
+                  ...suggestionOptions(LEAD_SOURCE_SUGGESTIONS, list.filters.source),
+                ]}
+                value={list.filters.source ?? ""}
+                onChange={(e) => list.setFilter("source", e.target.value)}
+              />
+            </Field>
+            <Field label="Ejecutivo" htmlFor="f-exec">
+              <Select
+                id="f-exec"
+                options={[{ value: "", label: "Todos los ejecutivos" }, ...execOptions]}
+                value={list.filters.assigned_user_id ?? ""}
+                onChange={(e) => list.setFilter("assigned_user_id", e.target.value)}
+              />
+            </Field>
+            <Field label="Proyecto" htmlFor="f-project">
+              <Select
+                id="f-project"
+                options={[{ value: "", label: "Todos los proyectos" }, ...projectOptions]}
+                value={list.filters.project_id ?? ""}
+                onChange={(e) => list.setFilter("project_id", e.target.value)}
+              />
+            </Field>
+            <Field label="Desde" htmlFor="f-from">
+              <Input
+                id="f-from"
+                type="date"
+                value={list.filters.date_from ?? ""}
+                onChange={(e) => list.setFilter("date_from", e.target.value)}
+              />
+            </Field>
+            <Field label="Hasta" htmlFor="f-to">
+              <Input
+                id="f-to"
+                type="date"
+                value={list.filters.date_to ?? ""}
+                onChange={(e) => list.setFilter("date_to", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          {/* Chips de filtros activos */}
+          {(() => {
+            const chips: { key: string; label: string; onClear: () => void }[] = [];
+            if (list.filters.stage)
+              chips.push({
+                key: "stage",
+                label: `Etapa: ${list.filters.stage}`,
+                onClear: () => list.setFilter("stage", ""),
+              });
+            if (list.filters.status)
+              chips.push({
+                key: "status",
+                label: `Estado: ${list.filters.status}`,
+                onClear: () => list.setFilter("status", ""),
+              });
+            if (list.filters.source)
+              chips.push({
+                key: "source",
+                label: `Fuente: ${list.filters.source}`,
+                onClear: () => list.setFilter("source", ""),
+              });
+            if (list.filters.assigned_user_id)
+              chips.push({
+                key: "exec",
+                label: `Ejecutivo: ${execName(list.filters.assigned_user_id)}`,
+                onClear: () => list.setFilter("assigned_user_id", ""),
+              });
+            if (list.filters.project_id)
+              chips.push({
+                key: "project",
+                label: `Proyecto: ${
+                  projectOptions.find((p) => p.value === list.filters.project_id)
+                    ?.label ?? list.filters.project_id
+                }`,
+                onClear: () => list.setFilter("project_id", ""),
+              });
+            if (list.filters.date_from)
+              chips.push({
+                key: "from",
+                label: `Desde ${list.filters.date_from}`,
+                onClear: () => list.setFilter("date_from", ""),
+              });
+            if (list.filters.date_to)
+              chips.push({
+                key: "to",
+                label: `Hasta ${list.filters.date_to}`,
+                onClear: () => list.setFilter("date_to", ""),
+              });
+            if (chips.length === 0) return null;
+            return (
+              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                <span className="text-xs text-subtle">Activos:</span>
+                {chips.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={c.onClear}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-muted transition-colors hover:border-border-strong hover:text-foreground"
+                  >
+                    {c.label}
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
         </div>
-      </div>
+      </Card>
 
       {/* Barra de selección masiva */}
       {canAssign && selected.size > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface px-4 py-2.5">
-          <p className="text-sm text-muted">
-            {selected.size} seleccionado{selected.size === 1 ? "" : "s"}
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-primary/30 bg-primary-soft px-4 py-2.5 shadow-soft">
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="secondary" onClick={clearSelection}>
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+              {selected.size}
+            </span>
+            <p className="text-sm font-medium text-foreground">
+              lead{selected.size === 1 ? "" : "s"} seleccionado
+              {selected.size === 1 ? "" : "s"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={clearSelection}>
               Limpiar
             </Button>
             <Button size="sm" onClick={() => setAssigning([...selected])}>
               <UserPlus className="h-4 w-4" />
-              Asignar
+              Asignar ejecutivo
             </Button>
           </div>
         </div>
@@ -466,11 +589,11 @@ export default function LeadsPage() {
           sortBy={list.sortBy}
           sortOrder={list.sortOrder}
           onSort={list.toggleSort}
-          emptyTitle={isTrash ? "Papelera vacía" : "Sin leads"}
+          emptyTitle={isTrash ? "Papelera vacía" : "Sin leads por aquí"}
           emptyDescription={
             isTrash
-              ? "No hay leads bloqueados."
-              : "No hay leads que coincidan con los filtros."
+              ? "No hay leads bloqueados. Los leads que muevas a la papelera aparecerán aquí y podrás restaurarlos."
+              : "Ningún lead coincide con tu búsqueda o filtros. Ajusta los filtros o crea uno nuevo."
           }
           emptyAction={
             canCreate && !isTrash ? (

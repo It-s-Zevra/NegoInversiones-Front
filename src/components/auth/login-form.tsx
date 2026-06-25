@@ -117,7 +117,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {formError && (
         <div
           ref={alertRef}
@@ -125,7 +125,7 @@ export function LoginForm() {
           tabIndex={-1}
           className="flex items-start gap-2.5 rounded-lg border border-danger/30 bg-danger-soft px-3.5 py-3 text-sm text-danger focus:outline-none"
         >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <span>{formError}</span>
         </div>
       )}
@@ -143,6 +143,7 @@ export function LoginForm() {
           aria-describedby={fieldErrors.email ? "email-error" : undefined}
           disabled={submitting}
           autoFocus
+          className="h-12"
         />
         {fieldErrors.email && (
           <p id="email-error" role="alert" className="mt-1.5 text-xs text-danger">
@@ -164,12 +165,12 @@ export function LoginForm() {
             invalid={!!fieldErrors.password}
             aria-describedby={fieldErrors.password ? "password-error" : undefined}
             disabled={submitting}
-            className="pr-11"
+            className="h-12 pr-12"
           />
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-1 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-subtle hover:text-foreground"
+            className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-subtle transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
             aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
             aria-pressed={showPassword}
           >
@@ -193,7 +194,8 @@ export function LoginForm() {
 
       <Button
         type="submit"
-        className="w-full"
+        size="md"
+        className="h-12 w-full text-sm"
         disabled={submitting || cooldown > 0}
         aria-busy={submitting}
       >

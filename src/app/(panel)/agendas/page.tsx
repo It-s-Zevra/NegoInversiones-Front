@@ -1,7 +1,20 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Plus, Upload, Pencil, Check, X, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Upload,
+  Pencil,
+  Check,
+  X,
+  Trash2,
+  Users,
+  CalendarDays,
+  Clock,
+  CalendarCheck,
+  CalendarX,
+  Ban,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
+import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState, EmptyState } from "@/components/ui/states";
 import { ScheduleEditor } from "@/components/agendas/schedule-editor";
@@ -62,6 +76,9 @@ const EXC_TYPE_FILTER = [
     (t) => ({ value: t, label: EXCEPTION_TYPE_LABELS[t] })
   ),
 ];
+
+/** HH:MM:SS / HH:MM → HH:MM para mostrar. */
+const hm = (t: string) => t.slice(0, 5);
 
 export default function AgendasPage() {
   const toast = useToast();
@@ -206,7 +223,7 @@ export default function AgendasPage() {
     <div className="space-y-6">
       <PageHeader
         title="Agendas"
-        description="Disponibilidad de ejecutivos y excepciones."
+        description="Gestiona la disponibilidad de los ejecutivos, sus horarios y las excepciones."
         actions={
           isPrivileged && (
             <Button variant="secondary" onClick={() => setImportOpen(true)}>
@@ -219,11 +236,21 @@ export default function AgendasPage() {
 
       {/* Disponibilidad de ejecutivos */}
       <Card>
-        <CardHeader>
-          <CardTitle>Disponibilidad de ejecutivos</CardTitle>
+        <CardHeader className="flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary-soft text-primary">
+              <CalendarDays className="h-4 w-4" />
+            </span>
+            <div>
+              <CardTitle>Disponibilidad de ejecutivos</CardTitle>
+              <p className="mt-0.5 text-xs text-muted">
+                Vista semanal de los ejecutivos en el rango seleccionado.
+              </p>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:max-w-2xl">
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-surface-muted/60 p-3 sm:grid-cols-3 lg:max-w-2xl">
             <Field label="Ejecutivo" htmlFor="ex-exec">
               <Select
                 id="ex-exec"
@@ -241,55 +268,139 @@ export default function AgendasPage() {
           </div>
 
           {rangeError ? (
-            <p className="text-sm text-danger">{rangeError}</p>
+            <div className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-soft px-3 py-2.5 text-sm text-danger">
+              <Ban className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{rangeError}</span>
+            </div>
           ) : exec.loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full rounded-xl" />
+              ))}
+            </div>
           ) : exec.error ? (
             <ErrorState error={exec.error} onRetry={exec.refetch} />
           ) : (exec.data?.executives.length ?? 0) === 0 ? (
-            <EmptyState title="Sin datos" description="No hay disponibilidad en el rango." />
+            <EmptyState
+              icon={<Users className="h-5 w-5" />}
+              title="Sin datos"
+              description="No hay disponibilidad de ejecutivos en el rango seleccionado."
+            />
           ) : (
-            <ul className="divide-y divide-border">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {exec.data!.executives.map((ex) => {
                 const days = ex.days.filter((d) => d.available);
                 return (
-                  <li key={ex.executiveId} className="py-3">
-                    <p className="text-sm font-medium text-foreground">{ex.executiveName}</p>
-                    {days.length === 0 ? (
-                      <p className="mt-1 text-xs text-muted">Sin disponibilidad</p>
-                    ) : (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {days.map((d) => (
-                          <span key={d.date} className="rounded-md border border-border bg-surface-muted px-2 py-1 text-xs text-muted">
-                            {DAY_OF_WEEK_LABELS[d.dayOfWeek]?.slice(0, 3)} {formatDate(d.date)} ·{" "}
-                            {d.windows.map((w) => `${w.start}–${w.end}`).join(", ")}
-                          </span>
-                        ))}
+                  <div
+                    key={ex.executiveId}
+                    className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface"
+                  >
+                    <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-muted/50 px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <Avatar name={ex.executiveName} className="h-8 w-8" />
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {ex.executiveName}
+                        </p>
                       </div>
+                      {days.length === 0 ? (
+                        <Badge tone="neutral">Sin disponibilidad</Badge>
+                      ) : (
+                        <Badge tone="primary">
+                          {days.length} {days.length === 1 ? "día" : "días"}
+                        </Badge>
+                      )}
+                    </div>
+                    {days.length === 0 ? (
+                      <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted">
+                        <CalendarX className="h-4 w-4 text-subtle" />
+                        Sin disponibilidad en este rango.
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-border">
+                        {days.map((d) => (
+                          <li
+                            key={d.date}
+                            className="flex flex-col gap-1.5 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3"
+                          >
+                            <div className="flex w-32 shrink-0 items-baseline gap-1.5">
+                              <span className="text-sm font-medium text-foreground">
+                                {DAY_OF_WEEK_LABELS[d.dayOfWeek]?.slice(0, 3)}
+                              </span>
+                              <span className="text-xs text-muted">{formatDate(d.date)}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {d.windows.map((w) => (
+                                <span
+                                  key={`${w.start}-${w.end}`}
+                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-muted px-2 py-0.5 text-xs font-medium tabular-nums text-foreground"
+                                >
+                                  <Clock className="h-3 w-3 text-subtle" />
+                                  {w.start}–{w.end}
+                                </span>
+                              ))}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     )}
-                  </li>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Gestión por usuario */}
-      <div className="grid grid-cols-1 gap-3 sm:max-w-sm">
-        <Field label="Usuario" htmlFor="ag-user">
-          <Select id="ag-user" options={userOptions} placeholder="Selecciona un usuario"
-            value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} />
-        </Field>
-      </div>
+      <Card>
+        <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex-1 sm:max-w-sm">
+            <Field label="Usuario a gestionar" htmlFor="ag-user">
+              <Select
+                id="ag-user"
+                options={userOptions}
+                placeholder="Selecciona un usuario"
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+              />
+            </Field>
+            <p className="mt-1.5 text-xs text-muted">
+              Edita su horario base, revisa su disponibilidad efectiva y gestiona sus excepciones.
+            </p>
+          </div>
+          {(() => {
+            const selectedUserName =
+              userOptions.find((o) => o.value === selectedUser)?.label ?? "";
+            return selectedUser && selectedUserName ? (
+              <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface-muted/60 px-3 py-2">
+                <Avatar name={selectedUserName} className="h-9 w-9" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{selectedUserName}</p>
+                  <p className="text-xs text-muted">Agenda en gestión</p>
+                </div>
+              </div>
+            ) : null;
+          })()}
+        </CardContent>
+      </Card>
 
       {selectedUser && (
         <>
           <ScheduleEditor userId={selectedUser} canWrite={canWrite} />
 
           <Card>
-            <CardHeader>
-              <CardTitle>Disponibilidad efectiva</CardTitle>
+            <CardHeader className="flex-col items-stretch gap-1 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-2">
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary-soft text-primary">
+                  <CalendarCheck className="h-4 w-4" />
+                </span>
+                <div>
+                  <CardTitle>Disponibilidad efectiva</CardTitle>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Resultado del horario base con las excepciones aplicadas en una fecha.
+                  </p>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:max-w-xs">
@@ -299,64 +410,97 @@ export default function AgendasPage() {
                 </Field>
               </div>
               {avail.loading ? (
-                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-24 w-full rounded-xl" />
               ) : avail.error ? (
                 <ErrorState error={avail.error} onRetry={avail.refetch} />
               ) : avail.data ? (
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface-muted/50 px-4 py-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <CalendarDays className="h-4 w-4 text-subtle" />
+                      {DAY_OF_WEEK_LABELS[avail.data.dayOfWeek]} · {formatDate(avail.data.date)}
+                    </div>
                     {avail.data.available ? (
                       <Badge tone="success" dot>Disponible</Badge>
                     ) : (
                       <Badge tone="neutral" dot>No disponible</Badge>
                     )}
-                    <span className="text-xs text-muted">
-                      {DAY_OF_WEEK_LABELS[avail.data.dayOfWeek]} · {formatDate(avail.data.date)}
-                    </span>
                   </div>
-                  {avail.data.windows.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {avail.data.windows.map((w, i) => (
-                        <span key={i} className="rounded-md border border-border bg-surface-muted px-2 py-1 text-xs text-muted">
-                          {w.start}–{w.end}
-                        </span>
-                      ))}
+                  <div className="space-y-4 px-4 py-4">
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium uppercase tracking-wide text-subtle">
+                        Ventanas del día
+                      </p>
+                      {avail.data.windows.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {avail.data.windows.map((w, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary-soft px-2.5 py-1 text-xs font-medium tabular-nums text-primary"
+                            >
+                              <Clock className="h-3.5 w-3.5" />
+                              {w.start}–{w.end}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted">Sin ventanas disponibles ese día.</p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-xs text-muted">Sin ventanas disponibles ese día.</p>
-                  )}
-                  {avail.data.appliedExceptions.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-foreground">Excepciones aplicadas</p>
-                      <ul className="mt-1 space-y-1">
-                        {avail.data.appliedExceptions.map((ex) => (
-                          <li key={ex.id} className="text-xs text-muted">
-                            {labelFor(EXCEPTION_TYPE_LABELS, ex.type)} ·{" "}
-                            {labelFor(EXCEPTION_EFFECT_LABELS, ex.effect)}
-                            {!ex.isAllDay && ex.startTime && ex.endTime
-                              ? ` · ${ex.startTime.slice(0, 5)}–${ex.endTime.slice(0, 5)}`
-                              : ""}
-                            {ex.reason ? ` · ${ex.reason}` : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                    {avail.data.appliedExceptions.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium uppercase tracking-wide text-subtle">
+                          Excepciones aplicadas
+                        </p>
+                        <ul className="space-y-1.5">
+                          {avail.data.appliedExceptions.map((ex) => (
+                            <li
+                              key={ex.id}
+                              className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface-muted/60 px-3 py-2 text-xs text-muted"
+                            >
+                              <span className="font-medium text-foreground">
+                                {labelFor(EXCEPTION_TYPE_LABELS, ex.type)}
+                              </span>
+                              <Badge tone={ex.effect === "BLOQUEA" ? "danger" : "success"}>
+                                {labelFor(EXCEPTION_EFFECT_LABELS, ex.effect)}
+                              </Badge>
+                              {!ex.isAllDay && ex.startTime && ex.endTime && (
+                                <span className="tabular-nums">
+                                  {hm(ex.startTime)}–{hm(ex.endTime)}
+                                </span>
+                              )}
+                              {ex.reason && <span>· {ex.reason}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : null}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Excepciones de disponibilidad</CardTitle>
+            <CardHeader className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary-soft text-primary">
+                  <CalendarX className="h-4 w-4" />
+                </span>
+                <div>
+                  <CardTitle>Excepciones de disponibilidad</CardTitle>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Vacaciones, permisos, feriados y bloqueos puntuales.
+                  </p>
+                </div>
+              </div>
               <Button size="sm" variant="secondary" onClick={() => { setEditingExc(null); setExcFormOpen(true); }}>
                 <Plus className="h-4 w-4" />
                 Nueva excepción
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:max-w-md">
+              <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-surface-muted/60 p-3 sm:grid-cols-2 lg:max-w-md">
                 <Field label="Estado" htmlFor="exc-status">
                   <Select id="exc-status" options={EXC_STATUS_FILTER}
                     value={excStatus} onChange={(e) => setExcStatus(e.target.value)} />
@@ -367,31 +511,50 @@ export default function AgendasPage() {
                 </Field>
               </div>
               {exc.loading ? (
-                <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+                <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
               ) : exc.error ? (
                 <ErrorState error={exc.error} onRetry={exc.refetch} />
               ) : (exc.data?.data.length ?? 0) === 0 ? (
-                <EmptyState title="Sin excepciones" />
+                <EmptyState
+                  icon={<CalendarX className="h-5 w-5" />}
+                  title="Sin excepciones"
+                  description="No hay excepciones registradas para este usuario con los filtros actuales."
+                />
               ) : (
-                <ul className="divide-y divide-border">
+                <ul className="space-y-2.5">
                   {exc.data!.data.map((e) => (
-                    <li key={e.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
+                    <li
+                      key={e.id}
+                      className="flex flex-col gap-3 rounded-xl border border-border bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0 space-y-1.5">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-sm font-medium text-foreground">
+                          <span className="text-sm font-semibold text-foreground">
                             {labelFor(EXCEPTION_TYPE_LABELS, e.type)}
                           </span>
                           <Badge tone={EXCEPTION_STATUS_META[e.status]?.tone ?? "neutral"} dot>
                             {EXCEPTION_STATUS_META[e.status]?.label ?? e.status}
                           </Badge>
+                          <Badge tone={e.effect === "BLOQUEA" ? "danger" : "success"}>
+                            {labelFor(EXCEPTION_EFFECT_LABELS, e.effect)}
+                          </Badge>
                           {e.userId === null && <Badge tone="info">Empresa</Badge>}
                         </div>
-                        <p className="mt-0.5 text-xs text-muted">
-                          {formatDate(e.startDate)} – {formatDate(e.endDate)} ·{" "}
-                          {labelFor(EXCEPTION_EFFECT_LABELS, e.effect)}
-                          {!e.isAllDay && e.startTime && e.endTime ? ` · ${e.startTime}–${e.endTime}` : ""}
-                          {e.reason ? ` · ${e.reason}` : ""}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                          <span className="inline-flex items-center gap-1 tabular-nums">
+                            <CalendarDays className="h-3.5 w-3.5 text-subtle" />
+                            {formatDate(e.startDate)} – {formatDate(e.endDate)}
+                          </span>
+                          {!e.isAllDay && e.startTime && e.endTime ? (
+                            <span className="inline-flex items-center gap-1 tabular-nums">
+                              <Clock className="h-3.5 w-3.5 text-subtle" />
+                              {e.startTime}–{e.endTime}
+                            </span>
+                          ) : (
+                            <span>Todo el día</span>
+                          )}
+                          {e.reason && <span className="truncate">· {e.reason}</span>}
+                        </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         {canDecide && e.status === "PENDIENTE" && (
