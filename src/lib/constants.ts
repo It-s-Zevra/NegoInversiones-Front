@@ -42,6 +42,14 @@ export interface NavItem {
   icon: LucideIcon;
   /** Permiso fino que habilita el módulo (referencia; el backend es la autoridad). */
   permission?: string;
+  /**
+   * Roles que ven el módulo. Para módulos cuyo acceso el backend resuelve por
+   * ROL (o por pertenencia), no por un permiso fino — p. ej. Agendas, donde el
+   * acceso a /users/:id/schedule es por propiedad o rol privilegiado y el board
+   * de ejecutivos es @Roles(ADMIN, JEFE_COMERCIAL, EJECUTIVO_VENTAS). El ítem se
+   * muestra si pasa AMBOS filtros (permission y roles) cuando están presentes.
+   */
+  roles?: UserRole[];
 }
 
 export interface NavSection {
@@ -60,7 +68,16 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Proyectos", href: "/proyectos", icon: Building2, permission: "projects:read" },
       { label: "Ventas", href: "/ventas", icon: ShoppingCart, permission: "sales:read" },
       { label: "Financiamiento", href: "/financiamiento", icon: Wallet, permission: "financing-plans:read" },
-      { label: "Agendas", href: "/agendas", icon: CalendarClock, permission: "schedules:read" },
+      // Agendas: acceso por rol/pertenencia, no por schedules:read (que el seed da
+      // solo a ADMIN/JEFE_COMERCIAL). El board de ejecutivos lo autoriza
+      // @Roles(ADMIN, JEFE_COMERCIAL, EJECUTIVO_VENTAS); cada quien gestiona su
+      // propia disponibilidad por pertenencia. Sin esto, EJECUTIVO_VENTAS quedaba fuera.
+      {
+        label: "Agendas",
+        href: "/agendas",
+        icon: CalendarClock,
+        roles: ["ADMIN", "JEFE_COMERCIAL", "EJECUTIVO_VENTAS"],
+      },
       { label: "Conocimiento", href: "/conocimiento", icon: BookOpen, permission: "kb:read" },
     ],
   },

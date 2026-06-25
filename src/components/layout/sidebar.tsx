@@ -9,14 +9,16 @@ import { cn } from "@/lib/utils";
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { can } = useAuth();
+  const { can, user } = useAuth();
 
-  // Pista de UI: ocultar módulos sin permiso (el backend sigue siendo la autoridad).
+  // Pista de UI: ocultar módulos sin permiso/rol (el backend sigue siendo la autoridad).
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter(
-      (item) => !item.permission || can(item.permission)
-    ),
+    items: section.items.filter((item) => {
+      if (item.permission && !can(item.permission)) return false;
+      if (item.roles && !(user && item.roles.includes(user.role))) return false;
+      return true;
+    }),
   })).filter((section) => section.items.length > 0);
 
   return (
