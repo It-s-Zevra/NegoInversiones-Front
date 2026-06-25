@@ -27,6 +27,8 @@ export const ENDPOINTS = {
   projects: "/projects",
   units: "/units",
   sales: "/sales",
+  leads: "/leads",
+  zones: "/zones",
   financingPlans: "/financing-plans",
   schedules: "/schedules",
   knowledgeBase: "/knowledge-base",

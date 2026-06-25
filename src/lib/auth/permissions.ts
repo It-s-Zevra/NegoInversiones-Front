@@ -58,7 +58,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "financing-plans:read",
     "kb:read",
   ],
-  CARTERA: ["projects:read", "sales:read", "financing-plans:read", "kb:read"],
+  CARTERA: [
+    "projects:read",
+    "sales:read",
+    "leads:read",
+    "financing-plans:read",
+    "kb:read",
+  ],
   LEGAL: ["projects:read", "sales:read", "financing-plans:read", "kb:read"],
   FINANZAS: [
     "projects:read",
@@ -73,6 +79,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "projects:write",
     "projects:delete",
     "sales:read",
+    "leads:read",
     "financing-plans:read",
     "kb:read",
   ],

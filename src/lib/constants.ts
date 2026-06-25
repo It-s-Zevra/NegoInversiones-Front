@@ -6,6 +6,7 @@ import {
   CalendarClock,
   BookOpen,
   Users,
+  UserSearch,
   ShieldCheck,
   KeyRound,
   Plug,
@@ -26,6 +27,8 @@ import type {
   AvailabilityExceptionEffect,
   AvailabilityExceptionStatus,
   NotificationType,
+  FollowupChannel,
+  FollowupStatus,
 } from "./api/types";
 
 export type BadgeTone =
@@ -65,6 +68,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Comercial",
     items: [
+      { label: "Leads", href: "/leads", icon: UserSearch, permission: "leads:read" },
       { label: "Proyectos", href: "/proyectos", icon: Building2, permission: "projects:read" },
       { label: "Ventas", href: "/ventas", icon: ShoppingCart, permission: "sales:read" },
       { label: "Financiamiento", href: "/financiamiento", icon: Wallet, permission: "financing-plans:read" },
@@ -230,4 +234,130 @@ export function labelFor<K extends string>(
   key: K
 ): string {
   return map[key] ?? key;
+}
+
+/* ---------- Leads (CRM) ----------
+ * stage/status/source/intent y el tipo/estado de cita son STRINGS LIBRES en el
+ * backend (sin enum). Estas listas son SOLO sugerencias para los selects; el
+ * front debe aceptar cualquier valor. Confirmar el catálogo canónico con el
+ * equipo (ver reporte a backend).
+ */
+export const LEAD_STAGE_SUGGESTIONS = [
+  "NUEVO",
+  "CALIFICADO",
+  "RESERVA",
+  "CUOTA_INICIAL",
+  "CONTRATO",
+  "LEGAL",
+  "FINANZAS",
+  "PROYECTO",
+  "ARCHIVO",
+] as const;
+
+export const LEAD_STATUS_SUGGESTIONS = [
+  "ACTIVO",
+  "EN_SEGUIMIENTO",
+  "CALIFICADO",
+  "HUMANO",
+  "GANADO",
+  "FRIO",
+  "PERDIDO",
+] as const;
+
+export const LEAD_SOURCE_SUGGESTIONS = [
+  "PANEL",
+  "WHATSAPP",
+  "FACEBOOK",
+  "INSTAGRAM",
+  "META_ADS",
+  "WEB",
+  "REFERIDO",
+  "FERIA",
+] as const;
+
+export const LEAD_INTENT_SUGGESTIONS = [
+  "COMPRA",
+  "ALQUILER",
+  "INVERSION",
+  "COTIZACION",
+  "INFORMACION",
+] as const;
+
+export const APPOINTMENT_TYPE_SUGGESTIONS = [
+  "VISITA_LOTE",
+  "VISITA_OBRA",
+  "REUNION",
+  "LLAMADA",
+] as const;
+
+export const APPOINTMENT_STATUS_SUGGESTIONS = [
+  "AGENDADA",
+  "CONFIRMADA",
+  "REALIZADA",
+  "CANCELADA",
+  "REAGENDADA",
+] as const;
+
+/**
+ * Cambiar el status a estos valores dispara side-effects en el backend
+ * (auto-asignación + reporte IA + notificación). La UI debe confirmar antes.
+ */
+export const LEAD_STATUS_SIDE_EFFECTS = new Set(["CALIFICADO", "HUMANO"]);
+
+/** Tonos conocidos para badges de status (fallback "neutral" para valores nuevos). */
+const LEAD_STATUS_TONES: Record<string, BadgeTone> = {
+  ACTIVO: "info",
+  EN_SEGUIMIENTO: "warning",
+  CALIFICADO: "primary",
+  HUMANO: "primary",
+  GANADO: "success",
+  FRIO: "neutral",
+  PERDIDO: "danger",
+  CANCELADO: "danger",
+};
+
+export function leadStatusTone(status: string | null | undefined): BadgeTone {
+  if (!status) return "neutral";
+  return LEAD_STATUS_TONES[status] ?? "neutral";
+}
+
+const APPOINTMENT_STATUS_TONES: Record<string, BadgeTone> = {
+  AGENDADA: "info",
+  CONFIRMADA: "primary",
+  REALIZADA: "success",
+  CANCELADA: "danger",
+  REAGENDADA: "warning",
+};
+
+export function appointmentStatusTone(status: string | null | undefined): BadgeTone {
+  if (!status) return "neutral";
+  return APPOINTMENT_STATUS_TONES[status] ?? "neutral";
+}
+
+export const FOLLOWUP_CHANNEL_LABELS: Record<FollowupChannel, string> = {
+  WHATSAPP: "WhatsApp",
+  WEB: "Web",
+  PANEL: "Panel",
+  SISTEMA: "Sistema",
+};
+
+export const FOLLOWUP_STATUS_META: Record<
+  FollowupStatus,
+  { label: string; tone: BadgeTone }
+> = {
+  PENDIENTE: { label: "Pendiente", tone: "warning" },
+  ENVIADO: { label: "Enviado", tone: "info" },
+  RESPONDIDO: { label: "Respondido", tone: "success" },
+  OMITIDO: { label: "Omitido", tone: "neutral" },
+};
+
+/** Construye opciones para un <Select> a partir de un catálogo de sugerencias,
+ * garantizando que el valor actual (libre) siempre tenga su opción. */
+export function suggestionOptions(
+  suggestions: readonly string[],
+  current?: string | null
+): { value: string; label: string }[] {
+  const values = [...suggestions];
+  if (current && !values.includes(current)) values.unshift(current);
+  return values.map((v) => ({ value: v, label: v }));
 }

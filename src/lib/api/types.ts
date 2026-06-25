@@ -398,6 +398,123 @@ export interface ActivityLogEntry {
   createdAt: string;
 }
 
+/* ---------- Leads (CRM) ----------
+ * ⚠️ A diferencia del resto del panel, el contrato de Leads usa snake_case
+ * tanto en request como en response. Se modela tal cual para no transformar
+ * en cada borde. Excepción: el listado devuelve { data, meta } con meta en
+ * camelCase (total/page/limit/totalPages); los sub-recursos vienen envueltos
+ * en { qualifications | interactions | appointments | zones | followups }.
+ */
+
+export type FollowupChannel = "WHATSAPP" | "WEB" | "PANEL" | "SISTEMA";
+export type FollowupStatus = "PENDIENTE" | "ENVIADO" | "RESPONDIDO" | "OMITIDO";
+
+export interface Lead {
+  id: string;
+  phone: string;
+  full_name: string | null;
+  email: string | null;
+  source: string | null;
+  /** Eje pipeline. String libre (sin enum server). */
+  stage: string | null;
+  /** Eje gestión. String libre (sin enum server). */
+  status: string | null;
+  intent: string | null;
+  brand: string | null;
+  assigned_user_id: string | null;
+  /** Excluyente con project_unit_id. */
+  project_id: string | null;
+  project_unit_id: string | null;
+  score: number | null;
+  notes: string | null;
+  is_historical: boolean;
+  img: string | null;
+  last_contact_at: string | null;
+  next_followup_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** KPIs: mapas dinámicos Record<valor, count> (iterar claves, no hardcodear). */
+export interface LeadStats {
+  total: number;
+  byStage: Record<string, number>;
+  byStatus: Record<string, number>;
+  bySource: Record<string, number>;
+}
+
+export interface LeadQualification {
+  id: string;
+  lead_id: string;
+  project_id: string | null;
+  project_unit_id: string | null;
+  budget_min: number | null;
+  budget_max: number | null;
+  currency: string | null;
+  down_payment_capacity: number | null;
+  monthly_payment_capacity: number | null;
+  financing_notes: string | null;
+  /** Historial acumulado por el upsert (estructura libre del backend). */
+  history: unknown;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadInteraction {
+  id: string;
+  lead_id: string;
+  /** WHATSAPP (integración) | PANEL (nota manual) | … (string libre). */
+  channel: string | null;
+  /** INBOUND | OUTBOUND | null (las notas suelen no tenerla). */
+  direction: string | null;
+  message_text: string | null;
+  /** NOTE (default del panel) | TEXT | … (string libre). */
+  message_type: string | null;
+  media_url: string | null;
+  intent: string | null;
+  /** id de usuario o "AGENT". */
+  handled_by: string | null;
+  occurred_at: string | null;
+  created_at: string;
+}
+
+export interface LeadAppointment {
+  id: string;
+  lead_id: string;
+  /** String libre: VISITA_LOTE | REUNION | LLAMADA | … */
+  type: string;
+  scheduled_at: string;
+  /** String libre: AGENDADA | CONFIRMADA | REALIZADA | CANCELADA | REAGENDADA. */
+  status: string;
+  assigned_user_id: string | null;
+  project_id: string | null;
+  unit_id: string | null;
+  location: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Catálogo de zonas (recurso aparte: GET /zones). */
+export interface Zone {
+  id: string;
+  name: string;
+  city: string | null;
+}
+
+export interface LeadFollowup {
+  id: string;
+  lead_id: string;
+  day_offset: number;
+  scheduled_for: string;
+  message_text: string | null;
+  channel: FollowupChannel;
+  status: FollowupStatus;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /* ---------- Notificaciones ---------- */
 
 export interface Notification {
