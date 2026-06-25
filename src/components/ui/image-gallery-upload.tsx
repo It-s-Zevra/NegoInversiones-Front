@@ -46,7 +46,15 @@ export function ImageGalleryUpload({
       return;
     }
     // El endpoint acepta hasta 20 por llamada; respetamos el espacio restante.
-    const batch = Array.from(files).slice(0, Math.min(room, 20));
+    const all = Array.from(files).slice(0, Math.min(room, 20));
+    const batch = all.filter((f) => f.size <= 10 * 1024 * 1024);
+    if (batch.length < all.length) {
+      toast({ tone: "error", title: "Algunas imágenes superan 10 MB y se omitieron." });
+    }
+    if (batch.length === 0) {
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setUploading(true);
     try {
       const base64s = await Promise.all(batch.map(fileToBase64));

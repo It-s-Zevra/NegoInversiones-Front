@@ -24,6 +24,11 @@ export function ImageUpload({ value, onChange, folder = "general", id }: Props) 
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ tone: "error", title: "Imagen muy grande", description: "Máximo 10 MB por imagen." });
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setUploading(true);
     try {
       const base64 = await new Promise<string>((resolve, reject) => {

@@ -22,7 +22,7 @@ import {
 } from "@/lib/api/api-clients";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage } from "@/lib/api/errors";
-import { formatRelativeTime } from "@/lib/format";
+import { formatRelativeTime, formatDate } from "@/lib/format";
 import type { ApiClient, ApiScope } from "@/lib/api/types";
 
 export default function ApiClientsPage() {
@@ -95,9 +95,14 @@ export default function ApiClientsPage() {
       header: "Último uso",
       render: (c) => (
         <span className="text-muted">
-          {c.lastUsedAt ? formatRelativeTime(c.lastUsedAt) : "Nunca"}
+          {c.lastUsedAt ? formatRelativeTime(c.lastUsedAt) : "Nunca usada"}
         </span>
       ),
+    },
+    {
+      key: "createdAt",
+      header: "Creado",
+      render: (c) => <span className="text-muted">{formatDate(c.createdAt)}</span>,
     },
     {
       key: "actions",

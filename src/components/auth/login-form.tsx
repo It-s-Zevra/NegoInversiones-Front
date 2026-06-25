@@ -39,6 +39,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
@@ -56,6 +57,13 @@ export function LoginForm() {
     if (formError) alertRef.current?.focus();
   }, [formError]);
 
+  // Cooldown tras un 429: cuenta regresiva que rehabilita el botón.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
   function validate(): boolean {
     const errors: typeof fieldErrors = {};
     if (!EMAIL_RE.test(email)) errors.email = "Ingresa un email válido.";
@@ -67,6 +75,7 @@ export function LoginForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (cooldown > 0) return;
     setFormError(null);
     if (!validate()) return;
 
@@ -83,8 +92,9 @@ export function LoginForm() {
         } else if (err.statusCode === 401) {
           setFormError("Email o contraseña incorrectos.");
         } else if (err.statusCode === 429) {
+          setCooldown(30);
           setFormError(
-            "Demasiados intentos. Espera un momento e inténtalo de nuevo."
+            "Demasiados intentos. Espera unos segundos e inténtalo de nuevo."
           );
         } else if (err.statusCode === 400) {
           const next: typeof fieldErrors = {};
@@ -184,11 +194,15 @@ export function LoginForm() {
       <Button
         type="submit"
         className="w-full"
-        disabled={submitting}
+        disabled={submitting || cooldown > 0}
         aria-busy={submitting}
       >
         {submitting && <Spinner />}
-        {submitting ? "Ingresando…" : "Iniciar sesión"}
+        {submitting
+          ? "Ingresando…"
+          : cooldown > 0
+            ? `Reintenta en ${cooldown}s`
+            : "Iniciar sesión"}
       </Button>
     </form>
   );
