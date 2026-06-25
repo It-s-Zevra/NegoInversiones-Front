@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { ImageGalleryUpload } from "@/components/ui/image-gallery-upload";
 import { useToast } from "@/components/ui/toast";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage, mapValidationErrors } from "@/lib/api/errors";
@@ -63,6 +64,7 @@ export function KbEntryForm({
   const [priority, setPriority] = useState("0");
   const [isActive, setIsActive] = useState(true);
   const [tagIds, setTagIds] = useState<Set<string>>(new Set());
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -83,6 +85,7 @@ export function KbEntryForm({
     setPriority(entry?.priority?.toString() ?? "0");
     setIsActive(entry?.isActive ?? true);
     setTagIds(new Set((entry?.tags ?? []).map((t) => t.id)));
+    setMediaUrls(entry?.mediaUrls ?? []);
   }, [open, entry]);
 
   function toggleTag(id: string, checked: boolean) {
@@ -139,6 +142,7 @@ export function KbEntryForm({
       priority: priority.trim() === "" ? undefined : Number(priority),
       isActive,
       tagIds: [...tagIds],
+      mediaUrls,
     };
 
     setSubmitting(true);
@@ -251,6 +255,15 @@ export function KbEntryForm({
               invalid={!!errors.priority} aria-describedby={errors.priority ? "kb-prio-error" : undefined} />
           </Field>
         </div>
+
+        <Field label="Adjuntos / imágenes" htmlFor="kb-media">
+          <ImageGalleryUpload
+            id="kb-media"
+            value={mediaUrls}
+            onChange={setMediaUrls}
+            folder="general"
+          />
+        </Field>
 
         {tags.length > 0 && (
           <Field label="Etiquetas" htmlFor="kb-tags" error={errors.tagIds}>

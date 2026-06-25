@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { ImageGalleryUpload } from "@/components/ui/image-gallery-upload";
 import { useToast } from "@/components/ui/toast";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage, mapValidationErrors } from "@/lib/api/errors";
@@ -43,6 +44,7 @@ interface UnitFormState {
   address2: string;
   references: string;
   financingPlanId: string;
+  imgUrl: string[];
 }
 
 const emptyForm: UnitFormState = {
@@ -62,6 +64,7 @@ const emptyForm: UnitFormState = {
   address2: "",
   references: "",
   financingPlanId: "",
+  imgUrl: [],
 };
 
 function numOrUndef(value: string): number | undefined {
@@ -117,6 +120,7 @@ export function UnitForm({
             address2: unit.address2 ?? "",
             references: unit.references ?? "",
             financingPlanId: unit.financingPlanId ?? "",
+            imgUrl: unit.imgUrl ?? [],
           }
         : emptyForm
     );
@@ -169,6 +173,8 @@ export function UnitForm({
       hasUtilities: form.hasUtilities,
       price: numOrUndef(form.price),
       areaM2: numOrUndef(form.areaM2),
+      // En edición se envía siempre (permite vaciar la galería); en alta solo si hay.
+      ...(isEdit || form.imgUrl.length ? { imgUrl: form.imgUrl } : {}),
     };
     const typeFields =
       form.type === "VIVIENDA"
@@ -460,6 +466,15 @@ export function UnitForm({
             value={form.references}
             onChange={(e) => set("references", e.target.value)}
             placeholder="Frente a la plaza central."
+          />
+        </Field>
+
+        <Field label="Galería de fotos" htmlFor="u-gallery">
+          <ImageGalleryUpload
+            id="u-gallery"
+            value={form.imgUrl}
+            onChange={(urls) => set("imgUrl", urls)}
+            folder="units"
           />
         </Field>
 

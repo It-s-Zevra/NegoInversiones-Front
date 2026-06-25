@@ -21,6 +21,7 @@ import { UnitFinancingOptionsDialog } from "@/components/units/unit-financing-op
 import { ApiException } from "@/lib/api/http";
 import { errorMessage } from "@/lib/api/errors";
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { safeImageUrl } from "@/lib/utils";
 import {
   UNIT_TYPE_LABELS,
   UNIT_STATUS_META,
@@ -216,6 +217,29 @@ export default function UnitDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Galería de fotos */}
+          {unit.imgUrl && unit.imgUrl.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Fotos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="flex flex-wrap gap-2">
+                  {unit.imgUrl.map((url, i) => (
+                    <li key={`${url}-${i}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={safeImageUrl(url) || url}
+                        alt={`Foto ${i + 1} de ${unit.code}`}
+                        className="h-28 w-28 rounded-lg border border-border object-cover"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Acciones de estado */}
           {canWrite && (ALLOWED_UNIT_ACTIONS[unit.status] ?? []).length > 0 && (
