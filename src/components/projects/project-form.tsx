@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus, X } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ interface FormState {
   totalUnits: string;
   imgUrl: string;
   isActive: boolean;
+  metaRows: { key: string; value: string }[];
 }
 
 const emptyForm: FormState = {
@@ -53,7 +55,18 @@ const emptyForm: FormState = {
   totalUnits: "",
   imgUrl: "",
   isActive: true,
+  metaRows: [],
 };
+
+function metadataToRows(
+  metadata: Record<string, unknown> | null | undefined
+): { key: string; value: string }[] {
+  if (!metadata) return [];
+  return Object.entries(metadata).map(([key, v]) => ({
+    key,
+    value: typeof v === "string" ? v : JSON.stringify(v),
+  }));
+}
 
 interface ProjectFormProps {
   open: boolean;
@@ -97,6 +110,7 @@ export function ProjectForm({
                 : String(project.totalUnits),
             imgUrl: project.imgUrl ?? "",
             isActive: project.isActive,
+            metaRows: metadataToRows(project.metadata),
           }
         : emptyForm
     );
@@ -104,6 +118,19 @@ export function ProjectForm({
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function setMetaRow(i: number, field: "key" | "value", value: string) {
+    setForm((f) => ({
+      ...f,
+      metaRows: f.metaRows.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)),
+    }));
+  }
+  function addMetaRow() {
+    setForm((f) => ({ ...f, metaRows: [...f.metaRows, { key: "", value: "" }] }));
+  }
+  function removeMetaRow(i: number) {
+    setForm((f) => ({ ...f, metaRows: f.metaRows.filter((_, idx) => idx !== i) }));
   }
 
   function validate(): boolean {
@@ -127,6 +154,11 @@ export function ProjectForm({
       brand: form.brand,
       type: form.type,
     };
+    const metadata = Object.fromEntries(
+      form.metaRows
+        .filter((r) => r.key.trim())
+        .map((r) => [r.key.trim(), r.value])
+    );
 
     setSubmitting(true);
     try {
@@ -141,6 +173,7 @@ export function ProjectForm({
           description: form.description.trim(),
           imgUrl: form.imgUrl.trim(),
           isActive: form.isActive,
+          metadata,
           ...(form.totalUnits === ""
             ? {}
             : { totalUnits: Number(form.totalUnits) }),
@@ -156,6 +189,7 @@ export function ProjectForm({
           imgUrl: form.imgUrl.trim() || undefined,
           totalUnits:
             form.totalUnits === "" ? undefined : Number(form.totalUnits),
+          ...(Object.keys(metadata).length ? { metadata } : {}),
         };
         saved = await createProject(body);
       }
@@ -310,6 +344,50 @@ export function ProjectForm({
             folder="projects"
           />
         </Field>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">
+              Metadata (opcional)
+            </span>
+            <Button type="button" variant="ghost" size="sm" onClick={addMetaRow}>
+              <Plus className="h-4 w-4" />
+              Agregar campo
+            </Button>
+          </div>
+          {form.metaRows.length === 0 ? (
+            <p className="text-xs text-muted">
+              Campos personalizados clave/valor (p. ej. mapa, video, contacto).
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {form.metaRows.map((r, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    aria-label={`Clave ${i + 1}`}
+                    value={r.key}
+                    onChange={(e) => setMetaRow(i, "key", e.target.value)}
+                    placeholder="clave"
+                  />
+                  <Input
+                    aria-label={`Valor ${i + 1}`}
+                    value={r.value}
+                    onChange={(e) => setMetaRow(i, "value", e.target.value)}
+                    placeholder="valor"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeMetaRow(i)}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
+                    aria-label={`Quitar campo ${i + 1}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {isEdit && (
           <div className="flex items-center justify-between rounded-lg border border-border bg-surface-muted/50 px-4 py-3">

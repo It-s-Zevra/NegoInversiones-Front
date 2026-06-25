@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState, EmptyState } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { useList } from "@/lib/hooks/use-list";
-import { UnreadContext } from "@/lib/hooks/use-unread-count";
+import { UnreadContext, useUnreadCount } from "@/lib/hooks/use-unread-count";
 import {
   listNotifications,
   markNotificationRead,
@@ -60,6 +60,7 @@ export default function NotificacionesPage() {
   const toast = useToast();
   const router = useRouter();
   const refreshUnread = useContext(UnreadContext);
+  const { count: unreadCount, refresh: refreshLocalUnread } = useUnreadCount();
   const list = useList<Notification>(listNotifications, { initialSortOrder: "DESC" });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
@@ -71,6 +72,7 @@ export default function NotificacionesPage() {
       await markNotificationRead(n.id);
       list.refetch();
       refreshUnread();
+      refreshLocalUnread();
     } catch (err) {
       if (err instanceof ApiException && err.statusCode === 404) {
         // La notificación ya no existe: sincronizamos la lista.
@@ -96,6 +98,7 @@ export default function NotificacionesPage() {
       toast({ tone: "success", title: res.updated > 0 ? `${res.updated} marcadas como leídas` : "Sin pendientes" });
       list.refetch();
       refreshUnread();
+      refreshLocalUnread();
     } catch (err) {
       toast({ tone: "error", title: "No se pudo", description: errorMessage(err) });
     } finally {
@@ -109,7 +112,12 @@ export default function NotificacionesPage() {
         title="Notificaciones"
         description="Tu bandeja de notificaciones."
         actions={
-          <Button variant="secondary" onClick={markAll} disabled={markingAll} aria-busy={markingAll}>
+          <Button
+            variant="secondary"
+            onClick={markAll}
+            disabled={markingAll || unreadCount === 0}
+            aria-busy={markingAll}
+          >
             <CheckCheck className="h-4 w-4" />
             Marcar todas
           </Button>

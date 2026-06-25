@@ -117,8 +117,16 @@ export default function ConocimientoPage() {
     {
       key: "isActive",
       header: "Estado",
-      render: (e) =>
-        e.isActive ? <Badge tone="success" dot>Activa</Badge> : <Badge tone="neutral" dot>Inactiva</Badge>,
+      render: (e) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {e.isActive ? (
+            <Badge tone="success" dot>Activa</Badge>
+          ) : (
+            <Badge tone="neutral" dot>Inactiva</Badge>
+          )}
+          {!e.hasEmbedding && <Badge tone="warning">Indexando…</Badge>}
+        </div>
+      ),
     },
     {
       key: "actions",

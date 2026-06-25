@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Logo } from "./logo";
 import { NAV_SECTIONS } from "@/lib/constants";
 import { useAuth } from "@/lib/auth/auth-context";
+import { ApiStatus } from "./api-status";
 import { cn } from "@/lib/utils";
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -73,10 +74,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      <div className="border-t border-border p-4">
-        <p className="text-[11px] text-subtle">
-          Panel Admin · v0.1
-        </p>
+      <div className="flex items-center justify-between gap-2 border-t border-border p-4">
+        <p className="text-[11px] text-subtle">Panel Admin · v0.1</p>
+        <ApiStatus />
       </div>
     </div>
   );

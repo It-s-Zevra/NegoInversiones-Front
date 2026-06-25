@@ -226,6 +226,9 @@ export interface KbEntry {
   isActive: boolean;
   priority: number;
   source: KbSource | null;
+  /** El embedding (índice del agente IA) se genera asíncrono tras crear/editar texto. */
+  hasEmbedding: boolean;
+  embeddingUpdatedAt: string | null;
   mediaUrls: string[] | null;
   tags: { id: string; name: string }[];
   createdByUserId: string | null;

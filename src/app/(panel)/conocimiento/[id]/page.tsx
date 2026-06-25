@@ -107,6 +107,11 @@ export default function KbDetailPage() {
                 {entry.brand && <Badge tone="neutral">{labelFor(BRAND_LABELS, entry.brand)}</Badge>}
                 {entry.isActive ? <Badge tone="success" dot>Activa</Badge> : <Badge tone="neutral" dot>Inactiva</Badge>}
                 {entry.source && <Badge tone="info">{entry.source}</Badge>}
+                {entry.hasEmbedding ? (
+                  <Badge tone="success">Indexada</Badge>
+                ) : (
+                  <Badge tone="warning">Indexando…</Badge>
+                )}
               </div>
             </div>
             {(canWrite || canDelete) && (
@@ -146,7 +151,18 @@ export default function KbDetailPage() {
               <div className="mt-5 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
                 <span>Creada {formatDate(entry.createdAt)}</span>
                 <span>Actualizada {formatDateTime(entry.updatedAt)}</span>
+                <span>
+                  {entry.hasEmbedding
+                    ? `Indexada ${formatDateTime(entry.embeddingUpdatedAt)}`
+                    : "Índice del agente en proceso"}
+                </span>
               </div>
+              {!entry.hasEmbedding && (
+                <p className="mt-3 rounded-lg border border-warning/30 bg-warning-soft/40 px-3 py-2 text-xs text-muted">
+                  El agente está generando el índice de esta entrada. Puede tardar
+                  unos segundos; recarga para ver el estado actualizado.
+                </p>
+              )}
             </CardContent>
           </Card>
 

@@ -155,7 +155,18 @@ export function KbEntryForm({
       } else {
         await createKbEntry(common satisfies CreateKbEntryInput);
       }
-      toast({ tone: "success", title: isEdit ? "Entrada actualizada" : "Entrada creada" });
+      // El embedding se regenera (async) solo si cambió el título o el contenido.
+      const textChanged =
+        !isEdit ||
+        title.trim() !== (entry?.title ?? "") ||
+        content.trim() !== (entry?.content ?? "");
+      toast({
+        tone: "success",
+        title: isEdit ? "Entrada actualizada" : "Entrada creada",
+        description: textChanged
+          ? "El índice del agente se actualizará en unos segundos."
+          : undefined,
+      });
       onSaved();
       onClose();
     } catch (err) {
