@@ -359,6 +359,7 @@ export function FinancingPlanForm({
             label="Tipo de anticipo"
             htmlFor="fp-dptype"
             error={errors.downPaymentType}
+            hint="Cómo se cobra la cuota inicial: sin anticipo, un monto fijo, o un % del precio."
           >
             <Select
               id="fp-dptype"
@@ -366,7 +367,7 @@ export function FinancingPlanForm({
               value={form.downPaymentType}
               invalid={!!errors.downPaymentType}
               aria-describedby={
-                errors.downPaymentType ? "fp-dptype-error" : undefined
+                errors.downPaymentType ? "fp-dptype-error" : "fp-dptype-hint"
               }
               onChange={(e) => {
                 const dpt = e.target.value as DownPaymentType;
@@ -497,6 +498,7 @@ export function FinancingPlanForm({
             label="Tasa de interés (%)"
             htmlFor="fp-rate"
             error={errors.interestRate}
+            hint="Tasa anual. Pon 0 si el plan no cobra interés."
           >
             <Input
               id="fp-rate"
@@ -506,7 +508,7 @@ export function FinancingPlanForm({
               value={form.interestRate}
               onChange={(e) => set("interestRate", e.target.value)}
               invalid={!!errors.interestRate}
-              aria-describedby={errors.interestRate ? "fp-rate-error" : undefined}
+              aria-describedby={errors.interestRate ? "fp-rate-error" : "fp-rate-hint"}
               placeholder="0"
             />
           </Field>
@@ -517,6 +519,7 @@ export function FinancingPlanForm({
             label="Descuento al contado (%)"
             htmlFor="fp-disc"
             error={errors.cashDiscountPercent}
+            hint="Descuento si el cliente paga todo de una vez."
           >
             <Input
               id="fp-disc"
@@ -528,12 +531,17 @@ export function FinancingPlanForm({
               onChange={(e) => set("cashDiscountPercent", e.target.value)}
               invalid={!!errors.cashDiscountPercent}
               aria-describedby={
-                errors.cashDiscountPercent ? "fp-disc-error" : undefined
+                errors.cashDiscountPercent ? "fp-disc-error" : "fp-disc-hint"
               }
               placeholder="50"
             />
           </Field>
-          <Field label="Monto mínimo" htmlFor="fp-min" error={errors.minAmount}>
+          <Field
+            label="Monto mínimo"
+            htmlFor="fp-min"
+            error={errors.minAmount}
+            hint="Monto mínimo de la operación para poder usar este plan."
+          >
             <Input
               id="fp-min"
               type="number"
@@ -542,7 +550,7 @@ export function FinancingPlanForm({
               value={form.minAmount}
               onChange={(e) => set("minAmount", e.target.value)}
               invalid={!!errors.minAmount}
-              aria-describedby={errors.minAmount ? "fp-min-error" : undefined}
+              aria-describedby={errors.minAmount ? "fp-min-error" : "fp-min-hint"}
               placeholder="1"
             />
           </Field>

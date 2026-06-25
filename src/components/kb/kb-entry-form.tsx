@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
-import { Dialog } from "@/components/ui/dialog";
+import {
+  Sparkles,
+  Wand2,
+  FileText,
+  Paperclip,
+  Tags as TagsIcon,
+  ToggleRight,
+  CheckCircle2,
+  Clock3,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, type SelectOption } from "@/components/ui/select";
@@ -31,20 +40,48 @@ const BRAND_OPTIONS = [
 ];
 
 interface Props {
-  open: boolean;
-  onClose: () => void;
+  onCancel: () => void;
   entry?: KbEntry | null;
   categories: KbCategory[];
   tags: KbTag[];
   projectOptions: SelectOption[];
   canWrite: boolean;
-  onSaved: () => void;
+  onSaved: (entry: KbEntry) => void;
   onNotFound?: () => void;
 }
 
+/** Encabezado de sección dentro del formulario: agrupa campos relacionados. */
+function FormSection({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="flex items-start gap-3">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="font-display text-sm font-semibold tracking-tight text-foreground">
+            {title}
+          </h3>
+          {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function KbEntryForm({
-  open,
-  onClose,
+  onCancel,
   entry,
   categories,
   tags,
@@ -74,8 +111,7 @@ export function KbEntryForm({
   const [drafting, setDrafting] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- precarga al abrir
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- precarga del formulario según la entrada
     setErrors({});
     setTopic("");
     setInstructions("");
@@ -88,7 +124,7 @@ export function KbEntryForm({
     setIsActive(entry?.isActive ?? true);
     setTagIds(new Set((entry?.tags ?? []).map((t) => t.id)));
     setMediaUrls(entry?.mediaUrls ?? []);
-  }, [open, entry]);
+  }, [entry]);
 
   function toggleTag(id: string, checked: boolean) {
     setTagIds((prev) => {
@@ -116,7 +152,7 @@ export function KbEntryForm({
       });
       setTitle(draft.title);
       setContent(draft.content);
-      toast({ tone: "success", title: "Borrador generado", description: "Revísalo antes de guardar." });
+      toast({ tone: "success", title: "Borrador generado", description: "Revísalo y edítalo antes de guardar." });
     } catch (err) {
       toast({ tone: "error", title: "No se pudo generar", description: errorMessage(err) });
     } finally {
@@ -150,11 +186,9 @@ export function KbEntryForm({
 
     setSubmitting(true);
     try {
-      if (isEdit) {
-        await updateKbEntry(entry!.id, common satisfies UpdateKbEntryInput);
-      } else {
-        await createKbEntry(common satisfies CreateKbEntryInput);
-      }
+      const saved = isEdit
+        ? await updateKbEntry(entry!.id, common satisfies UpdateKbEntryInput)
+        : await createKbEntry(common satisfies CreateKbEntryInput);
       // El embedding se regenera (async) solo si cambió el título o el contenido.
       const textChanged =
         !isEdit ||
@@ -167,8 +201,7 @@ export function KbEntryForm({
           ? "El índice del agente se actualizará en unos segundos."
           : undefined,
       });
-      onSaved();
-      onClose();
+      onSaved(saved);
     } catch (err) {
       if (err instanceof ApiException && err.statusCode === 400) {
         const { fieldErrors, rest } = mapValidationErrors(err, ["title", "content", "priority", "categoryId", "tagIds"]);
@@ -180,7 +213,6 @@ export function KbEntryForm({
         toast({ tone: "error", title: msg });
       } else if (err instanceof ApiException && err.statusCode === 404) {
         toast({ tone: "error", title: errorMessage(err) });
-        onClose();
         onNotFound?.();
       } else {
         toast({ tone: "error", title: "No se pudo guardar", description: errorMessage(err) });
@@ -191,121 +223,270 @@ export function KbEntryForm({
   }
 
   return (
-    <Dialog
-      open={open}
-      onClose={submitting ? () => {} : onClose}
-      title={isEdit ? "Editar entrada" : "Nueva entrada"}
-      size="lg"
-      footer={
-        <>
-          <Button variant="secondary" size="sm" onClick={onClose} disabled={submitting}>
-            Cancelar
-          </Button>
-          <Button type="submit" form="kb-form" size="sm" disabled={submitting} aria-busy={submitting}>
-            {submitting && <Spinner />}
-            {isEdit ? "Guardar" : "Crear"}
-          </Button>
-        </>
-      }
-    >
-      <form id="kb-form" onSubmit={handleSubmit} noValidate className="space-y-4">
-        {canWrite && (
-          <div className="rounded-lg border border-primary/30 bg-primary-soft/50 p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-              Asistente de redacción IA
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
+    <form id="kb-form" onSubmit={handleSubmit} noValidate className="space-y-6">
+      {canWrite && (
+        <Card className="overflow-hidden border-primary/30 bg-primary-soft/40 p-0">
+          <CardContent className="space-y-4 p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-soft">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+                  Redacta con IA
+                </h2>
+                <p className="mt-0.5 text-sm text-muted">
+                  Escribe el tema y la IA genera un borrador de título y contenido que luego
+                  puedes editar. Es la forma más rápida de crear una entrada bien redactada.
+                </p>
+              </div>
+            </div>
+
+            <Field
+              label="Tema"
+              htmlFor="kb-topic"
+              error={errors.topic}
+              hint="¿Sobre qué quieres que escriba? Sé concreto."
+            >
               <Input
                 id="kb-topic"
-                aria-label="Tema para la IA"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 invalid={!!errors.topic}
-                aria-describedby={errors.topic ? "kb-topic-error" : undefined}
-                placeholder="Tema, p. ej. requisitos para crédito directo"
+                aria-describedby={errors.topic ? "kb-topic-error" : "kb-topic-hint"}
+                placeholder="Ej. requisitos para acceder a crédito directo"
+                className="text-base"
               />
+            </Field>
+
+            <Field
+              label="Instrucciones (opcional)"
+              htmlFor="kb-instructions"
+              hint="Indica tono, longitud o enfoque si quieres afinar el resultado."
+            >
+              <Input
+                id="kb-instructions"
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                maxLength={500}
+                aria-describedby="kb-instructions-hint"
+                placeholder="Ej. tono cercano, máximo 4 párrafos, incluye un ejemplo"
+              />
+            </Field>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted">
+                {content.trim()
+                  ? "Se usará lo que ya escribiste abajo como base para mejorarlo."
+                  : "El borrador reemplazará el título y el contenido de abajo."}
+              </p>
               <Button
                 type="button"
-                variant="secondary"
                 onClick={generateDraft}
                 disabled={drafting}
                 aria-busy={drafting}
+                className="sm:w-auto"
               >
-                {drafting ? <Spinner /> : <Sparkles className="h-4 w-4" />}
-                Generar
+                {drafting ? <Spinner /> : <Wand2 className="h-4 w-4" />}
+                {drafting ? "Generando…" : "Generar borrador"}
               </Button>
             </div>
-            {errors.topic && <p id="kb-topic-error" role="alert" className="mt-1 text-xs text-danger">{errors.topic}</p>}
-            <Input
-              id="kb-instructions"
-              aria-label="Instrucciones para la IA (opcional)"
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              maxLength={500}
-              className="mt-2"
-              placeholder="Instrucciones opcionales (tono, longitud, enfoque…)"
-            />
-          </div>
-        )}
+          </CardContent>
+        </Card>
+      )}
 
-        <Field label="Título" htmlFor="kb-title" required error={errors.title}>
-          <Input id="kb-title" value={title} onChange={(e) => setTitle(e.target.value)}
-            invalid={!!errors.title} aria-describedby={errors.title ? "kb-title-error" : undefined} />
-        </Field>
-        <Field label="Contenido" htmlFor="kb-content" required error={errors.content}>
-          <Textarea id="kb-content" value={content} onChange={(e) => setContent(e.target.value)}
-            invalid={!!errors.content} aria-describedby={errors.content ? "kb-content-error" : undefined}
-            className="min-h-40" />
-        </Field>
+      <Card>
+        <CardContent className="space-y-8 p-5 sm:p-6">
+          <FormSection
+            icon={FileText}
+            title="Entrada"
+            description="El texto que leerá el agente. Puedes escribirlo a mano o partir del borrador de IA."
+          >
+            <Field label="Título" htmlFor="kb-title" required error={errors.title}>
+              <Input
+                id="kb-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                invalid={!!errors.title}
+                aria-describedby={errors.title ? "kb-title-error" : undefined}
+                placeholder="Un título corto y claro"
+              />
+            </Field>
+            <Field
+              label="Contenido"
+              htmlFor="kb-content"
+              required
+              error={errors.content}
+              hint="Explica el tema con tus palabras. Cuanto más claro, mejor responde el agente."
+            >
+              <Textarea
+                id="kb-content"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                invalid={!!errors.content}
+                aria-describedby={errors.content ? "kb-content-error" : "kb-content-hint"}
+                className="min-h-48"
+                placeholder="Escribe aquí el contenido de la entrada…"
+              />
+            </Field>
+          </FormSection>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Categoría" htmlFor="kb-cat" error={errors.categoryId}>
-            <Select id="kb-cat"
-              options={[{ value: "", label: "Sin categoría" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
-              value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-              invalid={!!errors.categoryId} aria-describedby={errors.categoryId ? "kb-cat-error" : undefined} />
-          </Field>
-          <Field label="Marca" htmlFor="kb-brand">
-            <Select id="kb-brand" options={BRAND_OPTIONS} value={brand} onChange={(e) => setBrand(e.target.value)} />
-          </Field>
-          <Field label="Proyecto" htmlFor="kb-proj">
-            <Select id="kb-proj" options={[{ value: "", label: "Global" }, ...projectOptions]}
-              value={projectId} onChange={(e) => setProjectId(e.target.value)} />
-          </Field>
-          <Field label="Prioridad" htmlFor="kb-prio" error={errors.priority}>
-            <Input id="kb-prio" type="number" min={0} value={priority} onChange={(e) => setPriority(e.target.value)}
-              invalid={!!errors.priority} aria-describedby={errors.priority ? "kb-prio-error" : undefined} />
-          </Field>
-        </div>
+          <div className="border-t border-border" />
 
-        <Field label="Adjuntos / imágenes" htmlFor="kb-media">
-          <ImageGalleryUpload
-            id="kb-media"
-            value={mediaUrls}
-            onChange={setMediaUrls}
-            folder="general"
-          />
-        </Field>
-
-        {tags.length > 0 && (
-          <Field label="Etiquetas" htmlFor="kb-tags" error={errors.tagIds}>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-border p-3">
-              {tags.map((t) => (
-                <Checkbox key={t.id} checked={tagIds.has(t.id)} onCheckedChange={(c) => toggleTag(t.id, c)} label={t.name} />
-              ))}
+          <FormSection
+            icon={TagsIcon}
+            title="Clasificación"
+            description="Ayuda al agente a saber cuándo usar esta entrada."
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field
+                label="Categoría"
+                htmlFor="kb-cat"
+                error={errors.categoryId}
+                hint="Agrupa la entrada por tema."
+              >
+                <Select
+                  id="kb-cat"
+                  options={[{ value: "", label: "Sin categoría" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  invalid={!!errors.categoryId}
+                  aria-describedby={errors.categoryId ? "kb-cat-error" : "kb-cat-hint"}
+                />
+              </Field>
+              <Field label="Marca" htmlFor="kb-brand" hint="Si aplica solo a una marca.">
+                <Select
+                  id="kb-brand"
+                  options={BRAND_OPTIONS}
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  aria-describedby="kb-brand-hint"
+                />
+              </Field>
+              <Field
+                label="Proyecto"
+                htmlFor="kb-proj"
+                hint="Déjalo en Global si sirve para todos los proyectos."
+              >
+                <Select
+                  id="kb-proj"
+                  options={[{ value: "", label: "Global" }, ...projectOptions]}
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                  aria-describedby="kb-proj-hint"
+                />
+              </Field>
+              <Field
+                label="Prioridad"
+                htmlFor="kb-prio"
+                error={errors.priority}
+                hint="Un número mayor hace que el agente la prefiera."
+              >
+                <Input
+                  id="kb-prio"
+                  type="number"
+                  min={0}
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                  invalid={!!errors.priority}
+                  aria-describedby={errors.priority ? "kb-prio-error" : "kb-prio-hint"}
+                />
+              </Field>
             </div>
-          </Field>
-        )}
+          </FormSection>
 
-        <div className="flex items-center justify-between rounded-lg border border-border bg-surface-muted/50 px-4 py-3">
-          <div>
-            <p className="text-sm font-medium text-foreground">Entrada activa</p>
-            <p className="text-xs text-muted">Las inactivas no se usan en el agente.</p>
-          </div>
-          <Switch checked={isActive} onCheckedChange={setIsActive} aria-label="Entrada activa" />
-        </div>
-      </form>
-    </Dialog>
+          <div className="border-t border-border" />
+
+          <FormSection
+            icon={Paperclip}
+            title="Adjuntos"
+            description="Imágenes o archivos de apoyo. Opcional."
+          >
+            <Field label="Imágenes" htmlFor="kb-media">
+              <ImageGalleryUpload
+                id="kb-media"
+                value={mediaUrls}
+                onChange={setMediaUrls}
+                folder="general"
+              />
+            </Field>
+          </FormSection>
+
+          {tags.length > 0 && (
+            <>
+              <div className="border-t border-border" />
+              <FormSection
+                icon={TagsIcon}
+                title="Etiquetas"
+                description="Palabras clave para encontrar y filtrar la entrada."
+              >
+                <Field label="Etiquetas" htmlFor="kb-tags" error={errors.tagIds}>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-border p-3">
+                    {tags.map((t) => (
+                      <Checkbox
+                        key={t.id}
+                        checked={tagIds.has(t.id)}
+                        onCheckedChange={(c) => toggleTag(t.id, c)}
+                        label={t.name}
+                      />
+                    ))}
+                  </div>
+                </Field>
+              </FormSection>
+            </>
+          )}
+
+          <div className="border-t border-border" />
+
+          <FormSection
+            icon={ToggleRight}
+            title="Disponibilidad"
+            description="Controla si el agente puede usar esta entrada."
+          >
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-muted/50 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Entrada activa</p>
+                <p className="text-xs text-muted">Las inactivas no se usan en el agente.</p>
+              </div>
+              <Switch checked={isActive} onCheckedChange={setIsActive} aria-label="Entrada activa" />
+            </div>
+
+            {isEdit && (
+              <div className="flex items-start gap-2 rounded-lg border border-border bg-surface-muted/40 px-4 py-3 text-xs text-muted">
+                {entry?.hasEmbedding ? (
+                  <>
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                    <p>
+                      <span className="font-medium text-foreground">Indexada.</span>{" "}
+                      El agente ya puede encontrar y usar esta entrada en sus respuestas. Si
+                      cambias el título o el contenido, volverá a indexarse en unos segundos.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                    <p>
+                      <span className="font-medium text-foreground">Indexando…</span>{" "}
+                      El agente está preparando esta entrada para poder usarla. Suele tardar
+                      unos segundos.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </FormSection>
+        </CardContent>
+      </Card>
+
+      <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t border-border bg-app/85 px-1 py-3 backdrop-blur">
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={submitting} aria-busy={submitting}>
+          {submitting && <Spinner />}
+          {isEdit ? "Guardar cambios" : "Crear entrada"}
+        </Button>
+      </div>
+    </form>
   );
 }

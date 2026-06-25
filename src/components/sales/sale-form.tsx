@@ -326,11 +326,27 @@ export function SaleForm({
     }
   }
 
+  const noUnits =
+    !!form.projectId &&
+    !unitsRes.loading &&
+    !unitsRes.error &&
+    (unitsRes.data?.data?.length ?? 0) === 0;
   const unitPlaceholder = !form.projectId
-    ? "Elegí un proyecto primero"
+    ? "Primero selecciona un proyecto"
     : unitsRes.loading
       ? "Cargando unidades…"
-      : "Sin unidad";
+      : noUnits
+        ? "Este proyecto no tiene unidades"
+        : "Sin unidad (opcional)";
+  const unitHint = !form.projectId
+    ? "Primero elige un proyecto; abajo aparecerán sus unidades."
+    : unitsRes.loading
+      ? "Buscando las unidades del proyecto…"
+      : unitsRes.error
+        ? "No se pudieron cargar las unidades. Vuelve a intentar."
+        : noUnits
+          ? "Este proyecto todavía no tiene unidades cargadas."
+          : "Opcional: elige la unidad que se vendió.";
 
   return (
     <form id="sale-form" onSubmit={handleSubmit} noValidate className="space-y-6">
@@ -394,11 +410,7 @@ export function SaleForm({
                 label="Unidad"
                 htmlFor="s-unit"
                 error={errors.unitId}
-                hint={
-                  !form.projectId
-                    ? "Elige un proyecto para ver sus unidades."
-                    : undefined
-                }
+                hint={unitHint}
               >
                 <Select
                   id="s-unit"
@@ -407,13 +419,7 @@ export function SaleForm({
                   value={form.unitId}
                   onChange={(e) => set("unitId", e.target.value)}
                   invalid={!!errors.unitId}
-                  aria-describedby={
-                    errors.unitId
-                      ? "s-unit-error"
-                      : !form.projectId
-                        ? "s-unit-hint"
-                        : undefined
-                  }
+                  aria-describedby={errors.unitId ? "s-unit-error" : "s-unit-hint"}
                   disabled={!form.projectId}
                 />
               </Field>

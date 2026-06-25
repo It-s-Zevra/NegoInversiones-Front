@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
@@ -10,17 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState, EmptyState } from "@/components/ui/states";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { KbEntryForm } from "@/components/kb/kb-entry-form";
 import { useToast } from "@/components/ui/toast";
 import { useResource } from "@/lib/hooks/use-resource";
 import { useAuth } from "@/lib/auth/auth-context";
-import { getKbEntry, deleteKbEntry, listKbCategories, listKbTags } from "@/lib/api/kb";
-import { listProjects } from "@/lib/api/projects";
+import { getKbEntry, deleteKbEntry } from "@/lib/api/kb";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage } from "@/lib/api/errors";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { BRAND_LABELS, labelFor } from "@/lib/constants";
-import type { KbEntry, KbCategory, KbTag, Paginated, Project } from "@/lib/api/types";
+import type { KbEntry } from "@/lib/api/types";
 
 export default function KbDetailPage() {
   const params = useParams<{ id: string }>();
@@ -34,21 +32,6 @@ export default function KbDetailPage() {
   const fetchEntry = useCallback((s?: AbortSignal) => getKbEntry(id, s), [id]);
   const { data: entry, loading, error, refetch } = useResource<KbEntry>(fetchEntry, [id]);
 
-  const catFetcher = useCallback((s?: AbortSignal) => listKbCategories(s), []);
-  const { data: categories } = useResource<KbCategory[]>(catFetcher, []);
-  const tagFetcher = useCallback((s?: AbortSignal) => listKbTags(s), []);
-  const { data: tags } = useResource<KbTag[]>(tagFetcher, []);
-  const projFetcher = useCallback(
-    (s?: AbortSignal) => listProjects({ page: 1, limit: 100, sortBy: "name", sortOrder: "ASC" }, s),
-    []
-  );
-  const { data: projectsPage } = useResource<Paginated<Project>>(projFetcher, []);
-  const projectOptions = useMemo(
-    () => (projectsPage?.data ?? []).map((p) => ({ value: p.id, label: p.name })),
-    [projectsPage]
-  );
-
-  const [formOpen, setFormOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -117,7 +100,10 @@ export default function KbDetailPage() {
             {(canWrite || canDelete) && (
               <div className="flex items-center gap-2">
                 {canWrite && (
-                  <Button variant="secondary" onClick={() => setFormOpen(true)}>
+                  <Button
+                    variant="secondary"
+                    onClick={() => router.push(`/conocimiento/${entry.id}/editar`)}
+                  >
                     <Pencil className="h-4 w-4" />
                     Editar
                   </Button>
@@ -166,17 +152,6 @@ export default function KbDetailPage() {
             </CardContent>
           </Card>
 
-          <KbEntryForm
-            open={formOpen}
-            onClose={() => setFormOpen(false)}
-            entry={entry}
-            categories={categories ?? []}
-            tags={tags ?? []}
-            projectOptions={projectOptions}
-            canWrite={canWrite}
-            onSaved={() => refetch()}
-            onNotFound={() => router.push("/conocimiento")}
-          />
           <ConfirmDialog
             open={deleting}
             onClose={() => setDeleting(false)}

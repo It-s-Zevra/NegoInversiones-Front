@@ -12,7 +12,6 @@ import { Select } from "@/components/ui/select";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { KbEntryForm } from "@/components/kb/kb-entry-form";
 import { useToast } from "@/components/ui/toast";
 import { useList } from "@/lib/hooks/use-list";
 import { useResource } from "@/lib/hooks/use-resource";
@@ -64,8 +63,6 @@ export default function ConocimientoPage() {
     initialSortOrder: "DESC",
   });
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<KbEntry | null>(null);
   const [deleting, setDeleting] = useState<KbEntry | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -136,7 +133,7 @@ export default function ConocimientoPage() {
         canWrite || canDelete ? (
           <div className="flex items-center justify-end gap-1" onClick={(ev) => ev.stopPropagation()}>
             {canWrite && (
-              <button type="button" onClick={() => { setEditing(e); setFormOpen(true); }}
+              <button type="button" onClick={() => router.push(`/conocimiento/${e.id}/editar`)}
                 className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
                 aria-label={`Editar ${e.title}`}>
                 <Pencil className="h-4 w-4" />
@@ -171,7 +168,7 @@ export default function ConocimientoPage() {
               </Button>
             )}
             {canWrite && (
-              <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
+              <Button onClick={() => router.push("/conocimiento/nueva")}>
                 <Plus className="h-4 w-4" />
                 Nueva entrada
               </Button>
@@ -230,17 +227,6 @@ export default function ConocimientoPage() {
         )}
       </Card>
 
-      <KbEntryForm
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        entry={editing}
-        categories={categories ?? []}
-        tags={tags ?? []}
-        projectOptions={projectOptions}
-        canWrite={canWrite}
-        onSaved={() => list.refetch()}
-        onNotFound={() => list.refetch()}
-      />
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
