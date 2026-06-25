@@ -70,6 +70,7 @@ export function KbEntryForm({
 
   // Asistente IA
   const [topic, setTopic] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [drafting, setDrafting] = useState(false);
 
   useEffect(() => {
@@ -77,6 +78,7 @@ export function KbEntryForm({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- precarga al abrir
     setErrors({});
     setTopic("");
+    setInstructions("");
     setTitle(entry?.title ?? "");
     setContent(entry?.content ?? "");
     setCategoryId(entry?.categoryId ?? "");
@@ -110,6 +112,7 @@ export function KbEntryForm({
         categoryCode: cat?.code,
         brand: (brand || undefined) as Brand | undefined,
         existingContent: content.trim() || undefined,
+        instructions: instructions.trim() || undefined,
       });
       setTitle(draft.title);
       setContent(draft.content);
@@ -223,6 +226,15 @@ export function KbEntryForm({
               </Button>
             </div>
             {errors.topic && <p id="kb-topic-error" role="alert" className="mt-1 text-xs text-danger">{errors.topic}</p>}
+            <Input
+              id="kb-instructions"
+              aria-label="Instrucciones para la IA (opcional)"
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              maxLength={500}
+              className="mt-2"
+              placeholder="Instrucciones opcionales (tono, longitud, enfoque…)"
+            />
           </div>
         )}
 

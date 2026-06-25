@@ -1,7 +1,8 @@
 "use client";
 
 import { useContext, useState } from "react";
-import { CheckCheck, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckCheck, Check, ArrowUpRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,8 +40,25 @@ const TYPE_FILTER = [
   })),
 ];
 
+/** Mapea la entidad origen de la notificación a su ruta en el panel. */
+const ENTITY_ROUTES: Record<string, string> = {
+  lead: "/leads",
+  project: "/proyectos",
+  unit: "/unidades",
+  sale: "/ventas",
+  "financing-plan": "/financiamiento",
+  "availability-exception": "/agendas",
+};
+
+function entityHref(n: Notification): string | null {
+  if (!n.entityType || !n.entityId) return null;
+  const base = ENTITY_ROUTES[n.entityType.toLowerCase()];
+  return base ? `${base}/${encodeURIComponent(n.entityId)}` : null;
+}
+
 export default function NotificacionesPage() {
   const toast = useToast();
+  const router = useRouter();
   const refreshUnread = useContext(UnreadContext);
   const list = useList<Notification>(listNotifications, { initialSortOrder: "DESC" });
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -64,6 +82,13 @@ export default function NotificacionesPage() {
       setBusyId(null);
     }
   }
+  function goToEntity(n: Notification) {
+    const href = entityHref(n);
+    if (!href) return;
+    if (!n.isRead) void markOne(n);
+    router.push(href);
+  }
+
   async function markAll() {
     setMarkingAll(true);
     try {
@@ -138,17 +163,29 @@ export default function NotificacionesPage() {
                     {n.description && <p className="mt-0.5 text-sm text-muted">{n.description}</p>}
                     <p className="mt-0.5 text-xs text-subtle">{formatRelativeTime(n.createdAt)}</p>
                   </div>
-                  {!n.isRead && (
-                    <button
-                      type="button"
-                      onClick={() => markOne(n)}
-                      disabled={busyId === n.id}
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
-                      aria-label="Marcar como leída"
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-                  )}
+                  <div className="flex shrink-0 items-center gap-1">
+                    {entityHref(n) && (
+                      <button
+                        type="button"
+                        onClick={() => goToEntity(n)}
+                        className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
+                        aria-label="Ver origen"
+                      >
+                        <ArrowUpRight className="h-4 w-4" />
+                      </button>
+                    )}
+                    {!n.isRead && (
+                      <button
+                        type="button"
+                        onClick={() => markOne(n)}
+                        disabled={busyId === n.id}
+                        className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
+                        aria-label="Marcar como leída"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

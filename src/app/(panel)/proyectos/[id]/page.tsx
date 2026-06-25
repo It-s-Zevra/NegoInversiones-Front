@@ -3,7 +3,14 @@
 import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Trash2, SearchX, Boxes } from "lucide-react";
+import {
+  ArrowLeft,
+  Pencil,
+  Trash2,
+  SearchX,
+  Boxes,
+  Image as ImageIcon,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -125,13 +132,20 @@ export default function ProjectDetailPage() {
         <>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
-              {safeImageUrl(project.imgUrl) && (
+              {safeImageUrl(project.imgUrl) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={safeImageUrl(project.imgUrl)!}
                   alt={project.name}
                   className="hidden h-16 w-16 rounded-xl object-cover sm:block"
                 />
+              ) : (
+                <div
+                  aria-hidden
+                  className="hidden h-16 w-16 place-items-center rounded-xl border border-dashed border-border-strong text-subtle sm:grid"
+                >
+                  <ImageIcon className="h-6 w-6" />
+                </div>
               )}
               <div>
                 <h1 className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
@@ -196,6 +210,26 @@ export default function ProjectDetailPage() {
                   label="Descripción"
                   value={project.description ?? "—"}
                 />
+                {project.metadata &&
+                  Object.keys(project.metadata).length > 0 && (
+                    <Row
+                      label="Metadata"
+                      value={
+                        <div className="flex flex-col gap-0.5 sm:items-end">
+                          {Object.entries(project.metadata).map(([k, v]) => (
+                            <span key={k} className="text-xs text-muted">
+                              <span className="font-medium text-foreground">
+                                {k}:
+                              </span>{" "}
+                              {typeof v === "object"
+                                ? JSON.stringify(v)
+                                : String(v)}
+                            </span>
+                          ))}
+                        </div>
+                      }
+                    />
+                  )}
                 <Row label="Creado" value={formatDate(project.createdAt)} />
                 <Row
                   label="Última actualización"

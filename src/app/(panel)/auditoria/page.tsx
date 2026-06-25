@@ -5,6 +5,7 @@ import { Eye } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
@@ -194,6 +195,11 @@ export default function AuditoriaPage() {
           rowLabel={(e) => `Ver ${e.action}`}
           emptyTitle="Sin registros"
           emptyDescription="No hay actividad que coincida con los filtros."
+          emptyAction={
+            <Button size="sm" variant="secondary" onClick={() => list.resetFilters()}>
+              Limpiar filtros
+            </Button>
+          }
         />
         {list.meta && !list.error && (
           <Pagination meta={list.meta} onPageChange={list.setPage} />

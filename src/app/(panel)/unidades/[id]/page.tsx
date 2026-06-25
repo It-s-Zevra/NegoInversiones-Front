@@ -90,6 +90,8 @@ export default function UnitDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<UnitAction | null>(null);
+  // Acciones "de peso" (vender/bloquear) piden confirmación.
+  const [pendingAction, setPendingAction] = useState<UnitAction | null>(null);
 
   async function runAction(action: UnitAction) {
     if (!unit) return;
@@ -255,7 +257,11 @@ export default function UnitDetailPage() {
                     variant={ACTION_VARIANT[action]}
                     disabled={actionLoading !== null}
                     aria-busy={actionLoading === action}
-                    onClick={() => runAction(action)}
+                    onClick={() =>
+                      action === "sell" || action === "block"
+                        ? setPendingAction(action)
+                        : runAction(action)
+                    }
                   >
                     {actionLoading === action && <Spinner />}
                     {UNIT_ACTION_META[action].label}
@@ -381,6 +387,29 @@ export default function UnitDetailPage() {
             title={`Eliminar unidad "${unit.code}"`}
             description="La unidad dejará de aparecer en el listado."
             confirmLabel="Eliminar"
+          />
+
+          <ConfirmDialog
+            open={pendingAction === "sell" || pendingAction === "block"}
+            onClose={() => setPendingAction(null)}
+            onConfirm={() => {
+              const a = pendingAction;
+              setPendingAction(null);
+              if (a) runAction(a);
+            }}
+            loading={actionLoading !== null}
+            tone={pendingAction === "block" ? "danger" : "primary"}
+            title={
+              pendingAction === "sell"
+                ? `Vender unidad "${unit.code}"`
+                : `Bloquear unidad "${unit.code}"`
+            }
+            description={
+              pendingAction === "sell"
+                ? "La unidad pasará a VENDIDO. ¿Confirmas la venta?"
+                : "La unidad pasará a BLOQUEADO y no estará disponible."
+            }
+            confirmLabel={pendingAction === "sell" ? "Vender" : "Bloquear"}
           />
         </>
       ) : null}

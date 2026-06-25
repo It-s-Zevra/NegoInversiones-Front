@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ImageGalleryUpload } from "@/components/ui/image-gallery-upload";
 import { useToast } from "@/components/ui/toast";
+import { useResource } from "@/lib/hooks/use-resource";
 import { ApiException } from "@/lib/api/http";
 import { errorMessage, mapValidationErrors } from "@/lib/api/errors";
 import {
@@ -19,8 +20,9 @@ import {
   type CreateUnitInput,
   type UpdateUnitInput,
 } from "@/lib/api/units";
+import { listFinancingPlans } from "@/lib/api/financing";
 import { UNIT_TYPE_LABELS } from "@/lib/constants";
-import type { Unit, UnitType } from "@/lib/api/types";
+import type { Unit, UnitType, FinancingPlan, Paginated } from "@/lib/api/types";
 
 const TYPE_OPTIONS = (Object.keys(UNIT_TYPE_LABELS) as UnitType[]).map((t) => ({
   value: t,
@@ -96,6 +98,29 @@ export function UnitForm({
   const [form, setForm] = useState<UnitFormState>(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Catálogo de planes para el combobox (en vez de teclear el id).
+  const plansFetcher = useCallback(
+    (signal?: AbortSignal) =>
+      open
+        ? listFinancingPlans(
+            { page: 1, limit: 100, sortBy: "name", sortOrder: "ASC" },
+            signal
+          )
+        : Promise.resolve(null),
+    [open]
+  );
+  const plansRes = useResource<Paginated<FinancingPlan> | null>(plansFetcher, [open]);
+  const planOptions = useMemo(() => {
+    const opts = [
+      { value: "", label: "Sin plan" },
+      ...(plansRes.data?.data ?? []).map((p) => ({ value: p.id, label: p.name })),
+    ];
+    if (unit?.financingPlanId && !opts.some((o) => o.value === unit.financingPlanId)) {
+      opts.push({ value: unit.financingPlanId, label: `Plan #${unit.financingPlanId}` });
+    }
+    return opts;
+  }, [plansRes.data, unit]);
 
   useEffect(() => {
     if (!open) return;
@@ -479,20 +504,18 @@ export function UnitForm({
         </Field>
 
         <Field
-          label="Plan de financiamiento (ID)"
+          label="Plan de financiamiento"
           htmlFor="u-fin"
-          hint="ID de un plan existente (opcional)."
+          hint="Plan por defecto de la unidad (opcional)."
           error={errors.financingPlanId}
         >
-          <Input
+          <Select
             id="u-fin"
+            options={planOptions}
             value={form.financingPlanId}
             onChange={(e) => set("financingPlanId", e.target.value)}
             invalid={!!errors.financingPlanId}
-            aria-describedby={
-              errors.financingPlanId ? "u-fin-error" : undefined
-            }
-            placeholder="2"
+            aria-describedby={errors.financingPlanId ? "u-fin-error" : undefined}
           />
         </Field>
 

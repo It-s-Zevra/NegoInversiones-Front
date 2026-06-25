@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -35,6 +36,7 @@ export default function UsuariosPage() {
   const canWrite = can("users:write");
   const canDelete = can("users:delete");
 
+  const router = useRouter();
   const rolesFetcher = useCallback((s?: AbortSignal) => listRoles(s), []);
   const { data: roles } = useResource<Role[]>(rolesFetcher, []);
   const roleOptions = useMemo(
@@ -179,8 +181,8 @@ export default function UsuariosPage() {
           error={list.error}
           onRetry={list.refetch}
           rowKey={(u) => u.id}
-          onRowClick={canWrite ? (u) => { setEditing(u); setFormOpen(true); } : undefined}
-          rowLabel={(u) => `Editar ${u.firstName} ${u.lastName}`}
+          onRowClick={(u) => router.push(`/usuarios/${u.id}`)}
+          rowLabel={(u) => `Ver ${u.firstName} ${u.lastName}`}
           sortBy={list.sortBy}
           sortOrder={list.sortOrder}
           onSort={list.toggleSort}

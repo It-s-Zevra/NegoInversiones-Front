@@ -24,21 +24,55 @@ function mask(value: unknown): unknown {
   return out;
 }
 
-function Snapshot({
-  title,
-  data,
+function fmt(value: unknown): string {
+  if (value === undefined) return "—";
+  const masked = mask(value);
+  if (masked === null) return "null";
+  return typeof masked === "object" ? JSON.stringify(masked) : String(masked);
+}
+
+/** Visor campo a campo: muestra qué cambió (antes → después), no JSON crudo. */
+function FieldDiff({
+  before,
+  after,
 }: {
-  title: string;
-  data: Record<string, unknown> | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
 }) {
+  const b = (before ?? {}) as Record<string, unknown>;
+  const a = (after ?? {}) as Record<string, unknown>;
+  const keys = Array.from(new Set([...Object.keys(b), ...Object.keys(a)])).sort();
+  if (keys.length === 0) {
+    return <p className="text-sm text-muted">Sin cambios registrados.</p>;
+  }
+  const changed = (k: string) => JSON.stringify(b[k]) !== JSON.stringify(a[k]);
   return (
-    <div className="min-w-0">
-      <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-subtle">
-        {title}
-      </p>
-      <pre className="max-h-64 overflow-auto rounded-lg border border-border bg-surface-muted p-3 text-xs text-foreground">
-        {data ? JSON.stringify(mask(data), null, 2) : "—"}
-      </pre>
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-border text-left text-subtle">
+            <th className="px-3 py-2 font-medium">Campo</th>
+            <th className="px-3 py-2 font-medium">Antes</th>
+            <th className="px-3 py-2 font-medium">Después</th>
+          </tr>
+        </thead>
+        <tbody>
+          {keys.map((k) => (
+            <tr
+              key={k}
+              className={
+                changed(k)
+                  ? "border-b border-border bg-warning-soft/40 last:border-0"
+                  : "border-b border-border last:border-0"
+              }
+            >
+              <td className="px-3 py-1.5 font-medium text-foreground">{k}</td>
+              <td className="px-3 py-1.5 text-muted">{before ? fmt(b[k]) : "—"}</td>
+              <td className="px-3 py-1.5 text-foreground">{after ? fmt(a[k]) : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -90,12 +124,17 @@ export function ActivityDetailDialog({
                 </span>
               </div>
             )}
+            {entry.userAgent && (
+              <div className="min-w-0">
+                <span className="text-muted">User agent: </span>
+                <span className="break-all font-medium text-foreground">
+                  {entry.userAgent}
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Snapshot title="Antes" data={entry.before} />
-            <Snapshot title="Después" data={entry.after} />
-          </div>
+          <FieldDiff before={entry.before} after={entry.after} />
         </div>
       )}
     </Dialog>

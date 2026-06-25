@@ -198,8 +198,13 @@ export default function ProjectsPage() {
         <SearchInput
           value={list.search}
           onChange={list.setSearch}
-          placeholder="Buscar por nombre o ciudad…"
+          placeholder="Buscar por nombre…"
           className="sm:col-span-2 lg:col-span-1"
+        />
+        <SearchInput
+          value={list.filters.city ?? ""}
+          onChange={(v) => list.setFilter("city", v)}
+          placeholder="Ciudad…"
         />
         <Select
           options={BRAND_FILTER}
