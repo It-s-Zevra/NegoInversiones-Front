@@ -17,7 +17,7 @@ import {
   createInteraction,
   deleteInteraction,
 } from "@/lib/api/leads";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { LeadInteraction } from "@/lib/api/types";
 
@@ -31,8 +31,11 @@ type Kind = "note" | "inbound" | "outbound" | "system";
 
 function classify(it: LeadInteraction): Kind {
   if (it.message_type === "NOTE") return "note";
-  if (it.direction === "INBOUND") return "inbound";
+  // El Agente IA representa a la empresa: sus mensajes van de nuestro lado,
+  // aunque el dato a veces venga con la dirección mal puesta.
+  if (it.handled_by === "AGENT") return "outbound";
   if (it.direction === "OUTBOUND") return "outbound";
+  if (it.direction === "INBOUND") return "inbound";
   return "system";
 }
 
@@ -45,6 +48,14 @@ function actorLabel(it: LeadInteraction, kind: Kind): string {
 }
 
 const ts = (it: LeadInteraction) => Date.parse(it.occurred_at ?? it.created_at) || 0;
+const createdTs = (it: LeadInteraction) => Date.parse(it.created_at) || 0;
+const idNum = (it: LeadInteraction) => Number(it.id) || 0;
+
+/** Orden cronológico estable: por momento, luego creación, luego id (orden de
+ *  inserción) — necesario porque varios mensajes comparten el mismo minuto. */
+function compareChrono(a: LeadInteraction, b: LeadInteraction): number {
+  return ts(a) - ts(b) || createdTs(a) - createdTs(b) || idNum(a) - idNum(b);
+}
 
 export function InteractionsTab({ leadId, canWrite, canDelete }: Props) {
   const toast = useToast();
@@ -52,7 +63,24 @@ export function InteractionsTab({ leadId, canWrite, canDelete }: Props) {
   const { data, loading, error, refetch } = useResource<LeadInteraction[]>(fetcher, [leadId]);
 
   // Orden cronológico: lo más viejo arriba, lo nuevo abajo (como un chat).
-  const items = useMemo(() => [...(data ?? [])].sort((a, b) => ts(a) - ts(b)), [data]);
+  const items = useMemo(() => [...(data ?? [])].sort(compareChrono), [data]);
+
+  // Agrupar por día para mostrar separadores de fecha.
+  const groups = useMemo(() => {
+    const out: { key: string; label: string; items: LeadInteraction[] }[] = [];
+    for (const it of items) {
+      const key = (it.occurred_at ?? it.created_at ?? "").slice(0, 10);
+      const last = out[out.length - 1];
+      if (last && last.key === key) last.items.push(it);
+      else
+        out.push({
+          key,
+          label: formatDate(it.occurred_at ?? it.created_at),
+          items: [it],
+        });
+    }
+    return out;
+  }, [items]);
 
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -223,9 +251,18 @@ export function InteractionsTab({ leadId, canWrite, canDelete }: Props) {
         ) : (
           <div
             ref={threadRef}
-            className="max-h-112 overflow-y-auto rounded-xl bg-surface-muted/30 p-3"
+            className="max-h-112 space-y-3 overflow-y-auto rounded-xl bg-surface-muted/30 p-3"
           >
-            <ul className="space-y-3">{items.map(renderItem)}</ul>
+            {groups.map((g) => (
+              <div key={g.key} className="space-y-3">
+                <div className="flex justify-center">
+                  <span className="rounded-full border border-border bg-surface px-3 py-1 text-[11px] font-medium text-subtle">
+                    {g.label}
+                  </span>
+                </div>
+                <ul className="space-y-3">{g.items.map(renderItem)}</ul>
+              </div>
+            ))}
           </div>
         )}
 
