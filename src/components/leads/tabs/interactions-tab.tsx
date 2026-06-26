@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Send, Trash2, StickyNote, Paperclip } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,12 +51,19 @@ export function InteractionsTab({ leadId, canWrite, canDelete }: Props) {
   const fetcher = useCallback((s?: AbortSignal) => listInteractions(leadId, {}, s), [leadId]);
   const { data, loading, error, refetch } = useResource<LeadInteraction[]>(fetcher, [leadId]);
 
-  // Más reciente arriba (feed de actividad).
-  const items = useMemo(() => [...(data ?? [])].sort((a, b) => ts(b) - ts(a)), [data]);
+  // Orden cronológico: lo más viejo arriba, lo nuevo abajo (como un chat).
+  const items = useMemo(() => [...(data ?? [])].sort((a, b) => ts(a) - ts(b)), [data]);
 
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Auto-scroll al final del hilo cuando cambia la cantidad de mensajes.
+  const threadRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [items.length]);
 
   async function addNote(e: React.FormEvent) {
     e.preventDefault();
@@ -175,7 +182,7 @@ export function InteractionsTab({ leadId, canWrite, canDelete }: Props) {
             <span className="font-medium text-muted">{who}</span>
             <span>· {when}</span>
             {it.channel === "WHATSAPP" && <span>· WhatsApp</span>}
-            {it.intent && (
+            {isInbound && it.intent && (
               <span className="rounded bg-info-soft px-1.5 py-0.5 text-info">
                 {it.intent}
               </span>
@@ -198,34 +205,6 @@ export function InteractionsTab({ leadId, canWrite, canDelete }: Props) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Agregar nota interna */}
-        {canWrite && (
-          <form onSubmit={addNote} className="rounded-xl border border-border bg-surface-muted/30 p-3">
-            <label
-              htmlFor="new-note"
-              className="text-xs font-medium text-foreground"
-            >
-              Agregar nota interna
-            </label>
-            <Textarea
-              id="new-note"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Anota algo del cliente o del seguimiento…"
-              className="mt-1.5"
-            />
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <p className="text-[11px] text-subtle">
-                Solo la ve el equipo · no se envía al cliente.
-              </p>
-              <Button type="submit" size="sm" disabled={submitting || !text.trim()} aria-busy={submitting}>
-                {submitting ? <Spinner /> : <Send className="h-4 w-4" />}
-                Agregar nota
-              </Button>
-            </div>
-          </form>
-        )}
-
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -242,7 +221,45 @@ export function InteractionsTab({ leadId, canWrite, canDelete }: Props) {
             description="Aquí verás los mensajes de WhatsApp y las notas que agregues."
           />
         ) : (
-          <ul className="space-y-3">{items.map(renderItem)}</ul>
+          <div
+            ref={threadRef}
+            className="max-h-112 overflow-y-auto rounded-xl bg-surface-muted/30 p-3"
+          >
+            <ul className="space-y-3">{items.map(renderItem)}</ul>
+          </div>
+        )}
+
+        {/* Agregar nota interna (debajo del hilo, como un chat) */}
+        {canWrite && (
+          <form
+            onSubmit={addNote}
+            className="rounded-xl border border-border bg-surface p-3"
+          >
+            <label htmlFor="new-note" className="text-xs font-medium text-foreground">
+              Agregar nota interna
+            </label>
+            <Textarea
+              id="new-note"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Anota algo del cliente o del seguimiento…"
+              className="mt-1.5"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-subtle">
+                Solo la ve el equipo · no se envía al cliente.
+              </p>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submitting || !text.trim()}
+                aria-busy={submitting}
+              >
+                {submitting ? <Spinner /> : <Send className="h-4 w-4" />}
+                Agregar nota
+              </Button>
+            </div>
+          </form>
         )}
       </CardContent>
     </Card>
