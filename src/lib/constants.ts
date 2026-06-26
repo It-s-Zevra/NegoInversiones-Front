@@ -4,6 +4,7 @@ import {
   ShoppingCart,
   Wallet,
   CalendarClock,
+  CalendarRange,
   BookOpen,
   Users,
   UserSearch,
@@ -76,6 +77,16 @@ export const NAV_SECTIONS: NavSection[] = [
       // solo a ADMIN/JEFE_COMERCIAL). El board de ejecutivos lo autoriza
       // @Roles(ADMIN, JEFE_COMERCIAL, EJECUTIVO_VENTAS); cada quien gestiona su
       // propia disponibilidad por pertenencia. Sin esto, EJECUTIVO_VENTAS quedaba fuera.
+      // Calendario: vista global de citas (GET /api/v1/appointments). Lo autoriza
+      // @Roles(ADMIN, JEFE_COMERCIAL, EJECUTIVO_VENTAS) + leads:read; el filtro de
+      // permiso fino lo cubre leads:read, y el de rol los tres comerciales.
+      {
+        label: "Calendario",
+        href: "/calendario",
+        icon: CalendarRange,
+        permission: "leads:read",
+        roles: ["ADMIN", "JEFE_COMERCIAL", "EJECUTIVO_VENTAS"],
+      },
       {
         label: "Agendas",
         href: "/agendas",
@@ -287,6 +298,22 @@ export const APPOINTMENT_STATUS_SUGGESTIONS = [
   "CANCELADA",
   "REAGENDADA",
 ] as const;
+
+/** Duraciones comunes para el selector de citas (el backend acepta 15–480). */
+export const APPOINTMENT_DURATION_OPTIONS: { value: string; label: string }[] = [
+  { value: "15", label: "15 min" },
+  { value: "30", label: "30 min" },
+  { value: "45", label: "45 min" },
+  { value: "60", label: "1 hora" },
+  { value: "90", label: "1 h 30 min" },
+  { value: "120", label: "2 horas" },
+  { value: "180", label: "3 horas" },
+  { value: "240", label: "4 horas" },
+];
+
+/** Copy en español para el 422 de solape (el backend responde en inglés). */
+export const APPOINTMENT_OVERLAP_MESSAGE =
+  "El ejecutivo ya tiene una cita en ese horario. Elige otro horario o ejecutivo.";
 
 /**
  * Cambiar el status a estos valores dispara side-effects en el backend

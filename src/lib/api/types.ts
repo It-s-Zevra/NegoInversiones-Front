@@ -490,12 +490,45 @@ export interface LeadAppointment {
   /** String libre: AGENDADA | CONFIRMADA | REALIZADA | CANCELADA | REAGENDADA. */
   status: string;
   assigned_user_id: string | null;
+  /** 15–480, default 60. El panel ahora lo respeta (antes se ignoraba). */
+  duration_minutes: number;
   project_id: string | null;
   unit_id: string | null;
   location: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Cita enriquecida del calendario global (GET /appointments). Respuesta en
+ * snake_case; varios campos pueden ser null. `scheduled_at` viene en UTC (con Z).
+ */
+export interface AppointmentCalendarItem {
+  appointment_id: string;
+  lead_id: string;
+  lead_name: string | null;
+  assigned_user_id: string | null;
+  executive_name: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  unit_id: string | null;
+  unit_code: string | null;
+  /** VISITA_LOTE | REUNION | LLAMADA | … (string libre) */
+  type: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  /** AGENDADA | CONFIRMADA | REALIZADA | CANCELADA | REAGENDADA (string libre) */
+  status: string;
+  location: string | null;
+  notes: string | null;
+}
+
+export interface AppointmentCalendarResponse {
+  from: string;
+  to: string;
+  total: number;
+  appointments: AppointmentCalendarItem[];
 }
 
 /** Catálogo de zonas (recurso aparte: GET /zones). */

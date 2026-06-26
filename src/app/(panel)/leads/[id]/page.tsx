@@ -444,7 +444,12 @@ export default function LeadDetailPage() {
                 <InteractionsTab leadId={lead.id} canWrite={canWrite} canDelete={canSubDelete} />
               )}
               {tab === "appointments" && (
-                <AppointmentsTab leadId={lead.id} canWrite={canWrite} canDelete={canSubDelete} />
+                <AppointmentsTab
+                  leadId={lead.id}
+                  canWrite={canWrite}
+                  canDelete={canSubDelete}
+                  defaultExecutiveId={lead.assigned_user_id ?? undefined}
+                />
               )}
               {tab === "zones" && <ZonesTab leadId={lead.id} canWrite={canWrite} />}
               {tab === "followups" && (

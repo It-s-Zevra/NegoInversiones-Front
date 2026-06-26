@@ -239,6 +239,8 @@ export function deleteInteraction(
 export interface AppointmentInput {
   type: string;
   scheduled_at: string;
+  /** 15–480, default 60. El backend ahora lo respeta (antes se ignoraba). */
+  duration_minutes?: number;
   status?: string;
   assigned_user_id?: string;
   project_id?: string;

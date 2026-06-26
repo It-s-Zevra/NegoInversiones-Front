@@ -28,6 +28,7 @@ export const ENDPOINTS = {
   units: "/units",
   sales: "/sales",
   leads: "/leads",
+  appointments: "/appointments",
   zones: "/zones",
   financingPlans: "/financing-plans",
   schedules: "/schedules",
