@@ -4,15 +4,14 @@ import { useCallback, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  CalendarRange,
   MapPin,
   User as UserIcon,
   Building2,
-  CalendarX,
+  Clock,
+  CalendarCheck2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/field";
@@ -46,15 +45,36 @@ const timeFmt = new Intl.DateTimeFormat("es-BO", {
   hour: "2-digit",
   minute: "2-digit",
 });
-const dayFmt = new Intl.DateTimeFormat("es-BO", {
-  day: "numeric",
-  month: "short",
-});
-const rangeFmt = new Intl.DateTimeFormat("es-BO", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
+const dayNumFmt = new Intl.DateTimeFormat("es-BO", { day: "numeric" });
+const monthShortFmt = new Intl.DateTimeFormat("es-BO", { month: "short" });
+
+/** Etiqueta compacta del rango semanal: "22 – 28 jun 2026" / "29 jun – 5 jul 2026". */
+function weekRangeLabel(a: Date, b: Date): string {
+  const year = b.getFullYear();
+  const ma = monthShortFmt.format(a).replace(".", "");
+  const mb = monthShortFmt.format(b).replace(".", "");
+  const da = dayNumFmt.format(a);
+  const db = dayNumFmt.format(b);
+  return a.getMonth() === b.getMonth()
+    ? `${da} – ${db} ${mb} ${year}`
+    : `${da} ${ma} – ${db} ${mb} ${year}`;
+}
+
+/** Acento (borde izquierdo) y punto de color por estado de la cita. */
+const STATUS_ACCENT: Record<string, string> = {
+  AGENDADA: "border-l-info",
+  CONFIRMADA: "border-l-primary",
+  REALIZADA: "border-l-success",
+  CANCELADA: "border-l-danger",
+  REAGENDADA: "border-l-warning",
+};
+const STATUS_DOT: Record<string, string> = {
+  AGENDADA: "bg-info",
+  CONFIRMADA: "bg-primary",
+  REALIZADA: "bg-success",
+  CANCELADA: "bg-danger",
+  REAGENDADA: "bg-warning",
+};
 
 function localDateKey(d: Date): string {
   const y = d.getFullYear();
@@ -212,7 +232,9 @@ export default function CalendarioPage() {
   const shiftWeek = (deltaWeeks: number) =>
     setAnchor((a) => new Date(a.getTime() + deltaWeeks * 7 * DAY_MS));
 
-  const weekLabel = `${dayFmt.format(days[0])} – ${rangeFmt.format(days[6])}`;
+  const weekLabel = weekRangeLabel(days[0], days[6]);
+  const isCurrentWeek = weekKeys.has(todayKey);
+  const activeFilters = [executive, project, status].filter(Boolean).length;
 
   return (
     <div className="space-y-6">
@@ -222,129 +244,179 @@ export default function CalendarioPage() {
       />
 
       <Card>
-        <CardContent className="space-y-5 py-5">
-          {/* Barra de navegación + filtros */}
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center rounded-lg border border-border-strong bg-surface">
+        <CardContent className="space-y-4 py-5">
+          {/* Barra de navegación */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center rounded-lg border border-border-strong bg-surface shadow-soft">
                 <button
                   type="button"
                   onClick={() => shiftWeek(-1)}
-                  className="grid h-10 w-10 place-items-center rounded-l-lg text-muted hover:bg-surface-muted hover:text-foreground"
+                  className="grid h-9 w-9 place-items-center rounded-l-lg text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
                   aria-label="Semana anterior"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
+                  onClick={() => setAnchor(startOfWeek(new Date()))}
+                  className="h-9 border-x border-border px-3 text-xs font-semibold text-foreground transition-colors hover:bg-surface-muted"
+                >
+                  Hoy
+                </button>
+                <button
+                  type="button"
                   onClick={() => shiftWeek(1)}
-                  className="grid h-10 w-10 place-items-center rounded-r-lg border-l border-border text-muted hover:bg-surface-muted hover:text-foreground"
+                  className="grid h-9 w-9 place-items-center rounded-r-lg text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
                   aria-label="Semana siguiente"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setAnchor(startOfWeek(new Date()))}
-              >
-                Hoy
-              </Button>
-              <div className="ml-1 min-w-0">
-                <p className="flex items-center gap-1.5 text-sm font-semibold capitalize text-foreground">
-                  <CalendarRange className="h-4 w-4 text-subtle" />
+              <div className="min-w-0">
+                <p className="text-base font-semibold tracking-tight text-foreground">
                   {weekLabel}
                 </p>
-                <p className="text-xs text-muted">
-                  {weekTotal} {weekTotal === 1 ? "cita" : "citas"} esta semana
+                <p className="flex items-center gap-1.5 text-xs text-muted">
+                  <CalendarCheck2 className="h-3.5 w-3.5 text-subtle" />
+                  {weekTotal} {weekTotal === 1 ? "cita" : "citas"} ·{" "}
+                  {isCurrentWeek ? "esta semana" : "semana seleccionada"}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 lg:max-w-2xl">
-              <Field label="Ejecutivo" htmlFor="cal-exec">
-                <Select
-                  id="cal-exec"
-                  options={[
-                    { value: "", label: "Todos" },
-                    ...executiveOptions,
-                  ]}
-                  value={executive}
-                  onChange={(e) => setExecutive(e.target.value)}
-                />
-              </Field>
-              <Field label="Proyecto" htmlFor="cal-proj">
-                <Select
-                  id="cal-proj"
-                  options={[{ value: "", label: "Todos" }, ...projectOptions]}
-                  value={project}
-                  onChange={(e) => setProject(e.target.value)}
-                />
-              </Field>
-              <Field label="Estado" htmlFor="cal-status">
-                <Select
-                  id="cal-status"
-                  options={STATUS_FILTER}
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                />
-              </Field>
+            {/* Leyenda de estados */}
+            <div className="hidden flex-wrap items-center gap-x-3 gap-y-1 lg:flex">
+              {APPOINTMENT_STATUS_SUGGESTIONS.map((s) => (
+                <span
+                  key={s}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted"
+                >
+                  <span
+                    className={
+                      "h-2 w-2 rounded-full " + (STATUS_DOT[s] ?? "bg-subtle")
+                    }
+                  />
+                  {s}
+                </span>
+              ))}
             </div>
+          </div>
+
+          {/* Filtros */}
+          <div className="grid grid-cols-1 gap-2.5 rounded-xl border border-border bg-surface-muted/50 p-3 sm:grid-cols-3">
+            <Field label="Ejecutivo" htmlFor="cal-exec">
+              <Select
+                id="cal-exec"
+                options={[{ value: "", label: "Todos" }, ...executiveOptions]}
+                value={executive}
+                onChange={(e) => setExecutive(e.target.value)}
+              />
+            </Field>
+            <Field label="Proyecto" htmlFor="cal-proj">
+              <Select
+                id="cal-proj"
+                options={[{ value: "", label: "Todos" }, ...projectOptions]}
+                value={project}
+                onChange={(e) => setProject(e.target.value)}
+              />
+            </Field>
+            <Field label="Estado" htmlFor="cal-status">
+              <Select
+                id="cal-status"
+                options={STATUS_FILTER}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              />
+            </Field>
+            {activeFilters > 0 && (
+              <div className="sm:col-span-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExecutive("");
+                    setProject("");
+                    setStatus("");
+                  }}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Limpiar filtros ({activeFilters})
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Cuadrícula semanal */}
           {cal.error ? (
             <ErrorState error={cal.error} onRetry={cal.refetch} />
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
-              {days.map((d) => {
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-7">
+              {days.map((d, idx) => {
                 const key = localDateKey(d);
                 const items = byDay.get(key) ?? [];
                 const isToday = key === todayKey;
+                const isWeekend = idx >= 5;
                 return (
                   <div
                     key={key}
                     className={
-                      "flex min-h-32 flex-col rounded-xl border bg-surface " +
+                      "flex min-h-36 flex-col overflow-hidden rounded-xl border transition-shadow " +
                       (isToday
-                        ? "border-primary/40 ring-1 ring-primary/20"
-                        : "border-border")
+                        ? "border-primary/40 shadow-soft ring-1 ring-primary/20"
+                        : "border-border") +
+                      (isWeekend && !isToday ? " bg-surface-muted/30" : " bg-surface")
                     }
                   >
                     <div
                       className={
-                        "flex items-baseline justify-between gap-1 rounded-t-xl border-b px-3 py-2 " +
+                        "flex items-center justify-between gap-1 border-b px-3 py-2 " +
                         (isToday
-                          ? "border-primary/30 bg-primary-soft"
-                          : "border-border bg-surface-muted/50")
+                          ? "border-primary/20 bg-primary-soft"
+                          : "border-border bg-surface-muted/40")
                       }
                     >
                       <span
                         className={
-                          "text-xs font-semibold uppercase tracking-wide " +
-                          (isToday ? "text-primary" : "text-subtle")
+                          "text-[11px] font-semibold uppercase tracking-wide " +
+                          (isToday
+                            ? "text-primary"
+                            : isWeekend
+                              ? "text-subtle/80"
+                              : "text-subtle")
                         }
                       >
-                        {DAY_NAMES[d.getDay() === 0 ? 6 : d.getDay() - 1]}
+                        {DAY_NAMES[idx]}
                       </span>
-                      <span
-                        className={
-                          "text-sm font-semibold tabular-nums " +
-                          (isToday ? "text-primary" : "text-foreground")
-                        }
-                      >
-                        {dayFmt.format(d)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {items.length > 0 && (
+                          <span className="grid h-4 min-w-4 place-items-center rounded-full bg-foreground/10 px-1 text-[10px] font-semibold tabular-nums text-foreground">
+                            {items.length}
+                          </span>
+                        )}
+                        <span
+                          className={
+                            "grid h-6 min-w-6 place-items-center rounded-full px-1 text-sm font-bold tabular-nums " +
+                            (isToday
+                              ? "bg-primary text-white"
+                              : "text-foreground")
+                          }
+                        >
+                          {dayNumFmt.format(d)}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex-1 space-y-2 p-2">
+                    <div className="flex flex-1 flex-col gap-2 p-2">
                       {cal.loading ? (
-                        <Skeleton className="h-16 w-full rounded-lg" />
+                        <>
+                          <Skeleton className="h-16 w-full rounded-lg" />
+                          {idx % 2 === 0 && (
+                            <Skeleton className="h-16 w-full rounded-lg" />
+                          )}
+                        </>
                       ) : items.length === 0 ? (
-                        <div className="flex h-full min-h-20 flex-col items-center justify-center gap-1 text-subtle">
-                          <CalendarX className="h-4 w-4" />
-                          <span className="text-[11px]">Sin citas</span>
+                        <div className="flex flex-1 items-center justify-center py-4">
+                          <span className="text-[11px] text-subtle/70">—</span>
                         </div>
                       ) : (
                         items.map((a) => {
@@ -361,18 +433,20 @@ export default function CalendarioPage() {
                                   : undefined
                               }
                               disabled={!canWrite}
+                              title={canWrite ? "Editar cita" : undefined}
                               className={
-                                "w-full rounded-lg border p-2 text-left transition-colors " +
-                                (muted
-                                  ? "border-border bg-surface-muted/40 opacity-70 "
-                                  : "border-border bg-surface ") +
+                                "group w-full rounded-lg border border-l-[3px] bg-surface p-2 text-left shadow-soft transition-all " +
+                                (STATUS_ACCENT[a.status] ?? "border-l-subtle") +
+                                " border-y-border border-r-border " +
+                                (muted ? "opacity-60 " : "") +
                                 (canWrite
-                                  ? "hover:border-primary/40 hover:bg-primary-soft/40 "
+                                  ? "hover:-translate-y-0.5 hover:border-y-primary/30 hover:border-r-primary/30 hover:shadow-pop "
                                   : "cursor-default ")
                               }
                             >
                               <div className="flex items-center justify-between gap-1">
-                                <span className="text-xs font-semibold tabular-nums text-foreground">
+                                <span className="inline-flex items-center gap-1 text-xs font-bold tabular-nums text-foreground">
+                                  <Clock className="h-3 w-3 text-subtle" />
                                   {timeRange(a.scheduled_at, a.duration_minutes)}
                                 </span>
                                 <Badge
@@ -384,7 +458,7 @@ export default function CalendarioPage() {
                               </div>
                               <p
                                 className={
-                                  "mt-1 truncate text-xs font-medium " +
+                                  "mt-1.5 truncate text-[13px] font-semibold " +
                                   (muted
                                     ? "text-muted line-through"
                                     : "text-foreground")
@@ -392,28 +466,30 @@ export default function CalendarioPage() {
                               >
                                 {a.lead_name ?? "Lead sin nombre"}
                               </p>
-                              <p className="truncate text-[11px] text-muted">
+                              <p className="truncate text-[11px] font-medium text-muted">
                                 {a.type}
                               </p>
-                              {a.executive_name && !executive && (
-                                <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-subtle">
-                                  <UserIcon className="h-3 w-3 shrink-0" />
-                                  {a.executive_name}
-                                </p>
-                              )}
-                              {a.project_name && (
-                                <p className="flex items-center gap-1 truncate text-[11px] text-subtle">
-                                  <Building2 className="h-3 w-3 shrink-0" />
-                                  {a.project_name}
-                                  {a.unit_code ? ` · ${a.unit_code}` : ""}
-                                </p>
-                              )}
-                              {a.location && (
-                                <p className="flex items-center gap-1 truncate text-[11px] text-subtle">
-                                  <MapPin className="h-3 w-3 shrink-0" />
-                                  {a.location}
-                                </p>
-                              )}
+                              <div className="mt-1 space-y-0.5">
+                                {a.executive_name && !executive && (
+                                  <p className="flex items-center gap-1 truncate text-[11px] text-subtle">
+                                    <UserIcon className="h-3 w-3 shrink-0" />
+                                    {a.executive_name}
+                                  </p>
+                                )}
+                                {a.project_name && (
+                                  <p className="flex items-center gap-1 truncate text-[11px] text-subtle">
+                                    <Building2 className="h-3 w-3 shrink-0" />
+                                    {a.project_name}
+                                    {a.unit_code ? ` · ${a.unit_code}` : ""}
+                                  </p>
+                                )}
+                                {a.location && (
+                                  <p className="flex items-center gap-1 truncate text-[11px] text-subtle">
+                                    <MapPin className="h-3 w-3 shrink-0" />
+                                    {a.location}
+                                  </p>
+                                )}
+                              </div>
                             </button>
                           );
                         })
