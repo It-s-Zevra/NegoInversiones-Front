@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Plus, Pencil, Trash2, KeyRound } from "lucide-react";
+import { Plus, Pencil, Trash2, KeyRound, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,9 +74,12 @@ export default function ApiClientsPage() {
       key: "name",
       header: "Cliente",
       render: (c) => (
-        <div>
+        <div className="space-y-1">
           <p className="font-medium text-foreground">{c.name}</p>
-          <p className="font-mono text-xs text-muted">{c.keyPrefix}…</p>
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-subtle">
+            <KeyRound className="h-3 w-3" aria-hidden="true" />
+            {c.keyPrefix}…
+          </span>
         </div>
       ),
     },
@@ -137,11 +140,20 @@ export default function ApiClientsPage() {
   ];
 
   const scopeColumns: Column<ApiScope>[] = [
-    { key: "code", header: "Código", render: (s) => <Badge tone="primary">{s.code}</Badge> },
+    {
+      key: "code",
+      header: "Permiso",
+      render: (s) => <Badge tone="primary" className="font-mono">{s.code}</Badge>,
+    },
     {
       key: "description",
-      header: "Descripción",
-      render: (s) => <span className="text-muted">{s.description ?? "—"}</span>,
+      header: "Qué habilita",
+      render: (s) =>
+        s.description ? (
+          <span className="text-muted">{s.description}</span>
+        ) : (
+          <span className="text-subtle italic">Sin descripción</span>
+        ),
     },
   ];
 
@@ -149,7 +161,7 @@ export default function ApiClientsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Clientes de API"
-        description="Credenciales para integraciones (n8n / agente). El consumo de /integration es externo."
+        description="Credenciales que usan las integraciones (n8n y el agente de IA) para conectarse al sistema."
         actions={
           canWrite && (
             <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
@@ -160,25 +172,58 @@ export default function ApiClientsPage() {
         }
       />
 
+      <div
+        role="note"
+        className="flex items-start gap-3 rounded-card border border-warning/30 bg-warning-soft px-4 py-3.5 text-warning"
+      >
+        <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+        <div className="space-y-1 text-sm">
+          <p className="font-semibold">Sección técnica — solo para el equipo de sistemas</p>
+          <p className="text-warning/90">
+            Acá viven las llaves que permiten que las integraciones (n8n y el agente de IA)
+            entren al sistema. No modifiques nada en esta página salvo que seas del equipo técnico:
+            revocar o cambiar algo puede dejar de funcionar una automatización.
+          </p>
+        </div>
+      </div>
+
       <Card className="overflow-hidden p-0">
-        <DataTable
-          columns={columns}
-          data={clients.data ?? []}
-          loading={clients.loading}
-          error={clients.error}
-          onRetry={clients.refetch}
-          rowKey={(c) => c.id}
-          emptyTitle="Sin clientes"
-        />
+        <CardHeader>
+          <div className="space-y-1">
+            <CardTitle>Clientes</CardTitle>
+            <p className="text-xs text-muted">
+              Cada cliente es una integración con su propia llave. Mostramos el inicio de la llave
+              (no la llave completa) para ayudarte a identificarla.
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          <DataTable
+            columns={columns}
+            data={clients.data ?? []}
+            loading={clients.loading}
+            error={clients.error}
+            onRetry={clients.refetch}
+            rowKey={(c) => c.id}
+            emptyTitle="Sin clientes"
+            emptyDescription="Todavía no hay integraciones con credenciales."
+          />
+        </CardContent>
       </Card>
 
       <Card className="overflow-hidden p-0">
         <CardHeader>
-          <CardTitle>Catálogo de scopes</CardTitle>
+          <div className="space-y-1">
+            <CardTitle>Catálogo de permisos</CardTitle>
+            <p className="text-xs text-muted">
+              Define qué puede hacer cada cliente. Al crear o editar un cliente le asignás uno o
+              varios de estos permisos.
+            </p>
+          </div>
           {canScopeWrite && (
             <Button variant="secondary" size="sm" onClick={() => setScopeFormOpen(true)}>
               <Plus className="h-4 w-4" />
-              Nuevo scope
+              Nuevo permiso
             </Button>
           )}
         </CardHeader>
@@ -190,7 +235,8 @@ export default function ApiClientsPage() {
             error={scopes.error}
             onRetry={scopes.refetch}
             rowKey={(s) => s.id}
-            emptyTitle="Sin scopes"
+            emptyTitle="Sin permisos"
+            emptyDescription="Todavía no se definieron permisos en el catálogo."
           />
         </CardContent>
       </Card>

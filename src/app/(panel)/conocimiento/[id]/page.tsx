@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,13 +62,30 @@ export default function KbDetailPage() {
       </Link>
 
       {loading ? (
-        <Card>
-          <CardContent className="space-y-4 pt-5">
-            <Skeleton className="h-7 w-2/3" />
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-40 w-full" />
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-5 w-48" />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+            <Card>
+              <CardContent className="space-y-3 pt-5">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-11/12" />
+                <Skeleton className="h-4 w-10/12" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-9/12" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="space-y-4 pt-5">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-28" />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       ) : error ? (
         <Card>
           {error.statusCode === 404 ? (
@@ -89,11 +106,16 @@ export default function KbDetailPage() {
                 {entry.category && <Badge tone="primary">{entry.category.name}</Badge>}
                 {entry.brand && <Badge tone="neutral">{labelFor(BRAND_LABELS, entry.brand)}</Badge>}
                 {entry.isActive ? <Badge tone="success" dot>Activa</Badge> : <Badge tone="neutral" dot>Inactiva</Badge>}
-                {entry.source && <Badge tone="info">{entry.source}</Badge>}
                 {entry.hasEmbedding ? (
-                  <Badge tone="success">Indexada</Badge>
+                  <Badge tone="success">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Indexada
+                  </Badge>
                 ) : (
-                  <Badge tone="warning">Indexando…</Badge>
+                  <Badge tone="warning">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Indexando…
+                  </Badge>
                 )}
               </div>
             </div>
@@ -118,39 +140,137 @@ export default function KbDetailPage() {
             )}
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Contenido</CardTitle>
-              <span className="text-xs text-muted">Prioridad {entry.priority}</span>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                {entry.content}
-              </p>
-              {entry.tags.length > 0 && (
-                <div className="mt-5 flex flex-wrap gap-1.5">
-                  {entry.tags.map((t) => (
-                    <Badge key={t.id} tone="neutral">#{t.name}</Badge>
-                  ))}
-                </div>
-              )}
-              <div className="mt-5 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
-                <span>Creada {formatDate(entry.createdAt)}</span>
-                <span>Actualizada {formatDateTime(entry.updatedAt)}</span>
-                <span>
-                  {entry.hasEmbedding
-                    ? `Indexada ${formatDateTime(entry.embeddingUpdatedAt)}`
-                    : "Índice del agente en proceso"}
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+            {/* Columna de lectura principal */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Contenido</CardTitle>
+                <span className="text-xs text-muted">
+                  Esto es lo que usa el agente para responder.
                 </span>
-              </div>
-              {!entry.hasEmbedding && (
-                <p className="mt-3 rounded-lg border border-warning/30 bg-warning-soft/40 px-3 py-2 text-xs text-muted">
-                  El agente está generando el índice de esta entrada. Puede tardar
-                  unos segundos; recarga para ver el estado actualizado.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                {entry.content.trim() ? (
+                  <p className="max-w-prose whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-foreground">
+                    {entry.content}
+                  </p>
+                ) : (
+                  <p className="text-sm text-subtle">
+                    Esta entrada todavía no tiene contenido.
+                  </p>
+                )}
+
+                {entry.mediaUrls && entry.mediaUrls.length > 0 && (
+                  <div className="mt-6 border-t border-border pt-5">
+                    <h2 className="text-sm font-medium text-foreground">Adjuntos</h2>
+                    <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {entry.mediaUrls.map((url) => (
+                        <a
+                          key={url}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group block overflow-hidden rounded-card border border-border bg-surface-muted"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt="Adjunto de la entrada"
+                            className="aspect-square w-full object-cover transition group-hover:opacity-90"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Sidebar de metadatos */}
+            <Card className="lg:sticky lg:top-6">
+              <CardHeader>
+                <CardTitle>Detalles</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5 text-sm">
+                <dl className="space-y-3.5">
+                  <div>
+                    <dt className="text-xs text-subtle">Categoría</dt>
+                    <dd className="mt-1 text-foreground">
+                      {entry.category ? entry.category.name : "Sin categoría"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-subtle">Marca</dt>
+                    <dd className="mt-1 text-foreground">
+                      {entry.brand
+                        ? labelFor(BRAND_LABELS, entry.brand)
+                        : "Todas"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-subtle">Prioridad</dt>
+                    <dd className="mt-1 text-foreground">{entry.priority}</dd>
+                  </div>
+                  {entry.source && (
+                    <div>
+                      <dt className="text-xs text-subtle">Origen</dt>
+                      <dd className="mt-1 text-foreground">{entry.source}</dd>
+                    </div>
+                  )}
+                </dl>
+
+                <div className="border-t border-border pt-4">
+                  <dt className="text-xs text-subtle">Estado del índice</dt>
+                  <dd className="mt-1.5">
+                    {entry.hasEmbedding ? (
+                      <span className="inline-flex items-center gap-1.5 text-success">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Lista para el agente
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-warning">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generando índice
+                      </span>
+                    )}
+                  </dd>
+                  <p className="mt-2 text-xs leading-relaxed text-subtle">
+                    {entry.hasEmbedding
+                      ? `Indexada el ${formatDateTime(entry.embeddingUpdatedAt)}.`
+                      : "El agente está procesando esta entrada. Puede tardar unos segundos; recarga para ver el estado actualizado."}
+                  </p>
+                </div>
+
+                {entry.tags.length > 0 && (
+                  <div className="border-t border-border pt-4">
+                    <dt className="text-xs text-subtle">Etiquetas</dt>
+                    <dd className="mt-2 flex flex-wrap gap-1.5">
+                      {entry.tags.map((t) => (
+                        <Badge key={t.id} tone="neutral">#{t.name}</Badge>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+
+                <div className="border-t border-border pt-4">
+                  <dl className="space-y-2.5 text-xs text-muted">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-subtle">Creada</dt>
+                      <dd className="text-right text-foreground">
+                        {formatDate(entry.createdAt)}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-subtle">Actualizada</dt>
+                      <dd className="text-right text-foreground">
+                        {formatDateTime(entry.updatedAt)}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <ConfirmDialog
             open={deleting}

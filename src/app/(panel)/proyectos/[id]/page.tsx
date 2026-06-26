@@ -9,6 +9,9 @@ import {
   Trash2,
   SearchX,
   Boxes,
+  MapPin,
+  Building2,
+  CalendarClock,
   Image as ImageIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,13 +31,22 @@ import { safeImageUrl } from "@/lib/utils";
 import { BRAND_LABELS, UNIT_TYPE_LABELS, labelFor } from "@/lib/constants";
 import type { Project } from "@/lib/api/types";
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+/** Par etiqueta/valor en bloque (label arriba, valor debajo) para una grilla limpia. */
+function Field({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="flex flex-col gap-0.5 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
-      <dt className="text-sm text-muted">{label}</dt>
-      <dd className="text-sm font-medium text-foreground sm:text-right">
-        {value}
-      </dd>
+    <div className={className}>
+      <dt className="text-xs font-medium uppercase tracking-wide text-subtle">
+        {label}
+      </dt>
+      <dd className="mt-1 text-sm text-foreground">{value}</dd>
     </div>
   );
 }
@@ -130,24 +142,34 @@ export default function ProjectDetailPage() {
         </Card>
       ) : project ? (
         <>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-4">
+          {/* Cabecera tipo hero: portada (o placeholder) + identidad del proyecto. */}
+          <Card className="overflow-hidden p-0">
+            <div className="relative h-36 bg-surface-muted sm:h-44">
               {safeImageUrl(project.imgUrl) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={safeImageUrl(project.imgUrl)!}
-                  alt={project.name}
-                  className="hidden h-16 w-16 rounded-xl object-cover sm:block"
-                />
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={safeImageUrl(project.imgUrl)!}
+                    alt={`Portada de ${project.name}`}
+                    className="h-full w-full object-cover"
+                  />
+                  <div
+                    aria-hidden
+                    className="absolute inset-0 bg-linear-to-t from-black/45 to-transparent"
+                  />
+                </>
               ) : (
                 <div
                   aria-hidden
-                  className="hidden h-16 w-16 place-items-center rounded-xl border border-dashed border-border-strong text-subtle sm:grid"
+                  className="grid h-full w-full place-items-center text-subtle"
                 >
-                  <ImageIcon className="h-6 w-6" />
+                  <ImageIcon className="h-8 w-8" />
                 </div>
               )}
-              <div>
+            </div>
+
+            <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <h1 className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
                   {project.name}
                 </h1>
@@ -168,33 +190,89 @@ export default function ProjectDetailPage() {
                     </Badge>
                   )}
                 </div>
+                {(project.city || project.location) && (
+                  <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted">
+                    <MapPin className="h-4 w-4 shrink-0 text-subtle" />
+                    <span className="truncate">
+                      {[project.city, project.location]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                <Button
+                  onClick={() =>
+                    router.push(`/proyectos/${project.id}/unidades`)
+                  }
+                >
+                  <Boxes className="h-4 w-4" />
+                  Ver unidades
+                </Button>
+                {canWrite && (
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      router.push(`/proyectos/${project.id}/editar`)
+                    }
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Editar
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button variant="outline" onClick={() => setDeleting(true)}>
+                    <Trash2 className="h-4 w-4 text-danger" />
+                    <span className="text-danger">Eliminar</span>
+                  </Button>
+                )}
               </div>
             </div>
+          </Card>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => router.push(`/proyectos/${project.id}/unidades`)}
-              >
-                <Boxes className="h-4 w-4" />
-                Ver unidades
-              </Button>
-              {canWrite && (
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push(`/proyectos/${project.id}/editar`)}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Editar
-                </Button>
-              )}
-              {canDelete && (
-                <Button variant="outline" onClick={() => setDeleting(true)}>
-                  <Trash2 className="h-4 w-4 text-danger" />
-                  <span className="text-danger">Eliminar</span>
-                </Button>
-              )}
-            </div>
+          {/* Tarjetas de resumen rápidas. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Card className="flex items-center gap-3 px-4 py-4">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-card bg-primary-soft text-primary">
+                <Boxes className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-subtle">
+                  Total de unidades
+                </p>
+                <p className="font-display text-lg font-semibold text-foreground">
+                  {formatNumber(project.totalUnits ?? null)}
+                </p>
+              </div>
+            </Card>
+            <Card className="flex items-center gap-3 px-4 py-4">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-card bg-surface-muted text-muted">
+                <Building2 className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-subtle">
+                  Tipo
+                </p>
+                <p className="font-display text-lg font-semibold text-foreground">
+                  {labelFor(UNIT_TYPE_LABELS, project.type)}
+                </p>
+              </div>
+            </Card>
+            <Card className="flex items-center gap-3 px-4 py-4">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-card bg-surface-muted text-muted">
+                <CalendarClock className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-subtle">
+                  Creado
+                </p>
+                <p className="font-display text-lg font-semibold text-foreground">
+                  {formatDate(project.createdAt)}
+                </p>
+              </div>
+            </Card>
           </div>
 
           <Card>
@@ -202,39 +280,56 @@ export default function ProjectDetailPage() {
               <CardTitle>Detalles</CardTitle>
             </CardHeader>
             <CardContent>
-              <dl>
-                <Row label="Ciudad" value={project.city ?? "—"} />
-                <Row label="Ubicación" value={project.location ?? "—"} />
-                <Row
+              <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+                <Field label="Ciudad" value={project.city ?? "—"} />
+                <Field label="Ubicación" value={project.location ?? "—"} />
+                <Field
                   label="Total de unidades"
                   value={formatNumber(project.totalUnits ?? null)}
                 />
-                <Row label="Descripción" value={project.description ?? "—"} />
-                {project.metadata &&
-                  Object.keys(project.metadata).length > 0 && (
-                    <Row
-                      label="Metadata"
-                      value={
-                        <div className="flex flex-col gap-0.5 sm:items-end">
-                          {Object.entries(project.metadata).map(([k, v]) => (
-                            <span key={k} className="text-xs text-muted">
-                              <span className="font-medium text-foreground">
-                                {k}:
-                              </span>{" "}
-                              {typeof v === "object"
-                                ? JSON.stringify(v)
-                                : String(v)}
-                            </span>
-                          ))}
-                        </div>
-                      }
-                    />
-                  )}
-                <Row label="Creado" value={formatDate(project.createdAt)} />
-                <Row
+                <Field
                   label="Última actualización"
                   value={formatDateTime(project.updatedAt)}
                 />
+                <Field
+                  className="sm:col-span-2"
+                  label="Descripción"
+                  value={
+                    project.description ? (
+                      <span className="whitespace-pre-line text-muted">
+                        {project.description}
+                      </span>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+                {project.metadata &&
+                  Object.keys(project.metadata).length > 0 && (
+                    <Field
+                      className="sm:col-span-2"
+                      label="Información adicional"
+                      value={
+                        <dl className="flex flex-wrap gap-2">
+                          {Object.entries(project.metadata).map(([k, v]) => (
+                            <span
+                              key={k}
+                              className="inline-flex items-center gap-1.5 rounded-card border border-border bg-surface-muted px-2.5 py-1 text-xs"
+                            >
+                              <dt className="font-medium text-foreground">
+                                {k}
+                              </dt>
+                              <dd className="text-muted">
+                                {typeof v === "object"
+                                  ? JSON.stringify(v)
+                                  : String(v)}
+                              </dd>
+                            </span>
+                          ))}
+                        </dl>
+                      }
+                    />
+                  )}
               </dl>
             </CardContent>
           </Card>

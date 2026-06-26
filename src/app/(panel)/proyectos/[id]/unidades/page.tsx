@@ -29,6 +29,7 @@ import {
   UNIT_TYPE_LABELS,
   UNIT_STATUS_META,
   labelFor,
+  type BadgeTone,
 } from "@/lib/constants";
 import type { Project, Unit, UnitStatus, UnitType } from "@/lib/api/types";
 
@@ -52,6 +53,18 @@ function areaLabel(value: string | null): string {
   const n = parseFloat(value);
   return Number.isNaN(n) ? "—" : `${formatNumber(n)} m²`;
 }
+
+const STATUS_ORDER = Object.keys(UNIT_STATUS_META) as UnitStatus[];
+
+/** Color del punto para cada tono de estado (alineado con los badges). */
+const DOT_TONE: Record<BadgeTone, string> = {
+  neutral: "bg-muted",
+  primary: "bg-primary",
+  success: "bg-success",
+  warning: "bg-warning",
+  danger: "bg-danger",
+  info: "bg-info",
+};
 
 export default function ProjectUnitsPage() {
   const params = useParams<{ id: string }>();
@@ -90,6 +103,16 @@ export default function ProjectUnitsPage() {
   }, [projectId]);
 
   const importer = useMemo(() => projectUnitsImporter(projectId), [projectId]);
+
+  // Resumen por estado de las unidades visibles en esta página (datos ya cargados).
+  const statusCounts = useMemo(() => {
+    const counts = {} as Record<UnitStatus, number>;
+    for (const status of STATUS_ORDER) counts[status] = 0;
+    for (const unit of list.items) {
+      if (unit.status in counts) counts[unit.status] += 1;
+    }
+    return counts;
+  }, [list.items]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -134,14 +157,18 @@ export default function ProjectUnitsPage() {
   const columns: Column<Unit>[] = [
     {
       key: "code",
-      header: "Código",
+      header: "Unidad",
       sortKey: "code",
-      render: (u) => <span className="font-medium text-foreground">{u.code}</span>,
-    },
-    {
-      key: "type",
-      header: "Tipo",
-      render: (u) => <Badge tone="neutral">{labelFor(UNIT_TYPE_LABELS, u.type)}</Badge>,
+      render: (u) => (
+        <div className="min-w-0">
+          <span className="font-display font-semibold text-foreground">
+            {u.code}
+          </span>
+          <span className="block text-xs text-subtle">
+            {labelFor(UNIT_TYPE_LABELS, u.type)}
+          </span>
+        </div>
+      ),
     },
     {
       key: "status",
@@ -158,14 +185,20 @@ export default function ProjectUnitsPage() {
       header: "Área",
       sortKey: "areaM2",
       align: "right",
-      render: (u) => <span className="text-muted">{areaLabel(u.areaM2)}</span>,
+      render: (u) => (
+        <span className="tabular-nums text-muted">{areaLabel(u.areaM2)}</span>
+      ),
     },
     {
       key: "price",
       header: "Precio",
       sortKey: "price",
       align: "right",
-      render: (u) => formatCurrency(u.price, u.currency),
+      render: (u) => (
+        <span className="font-display font-semibold tabular-nums text-foreground">
+          {formatCurrency(u.price, u.currency)}
+        </span>
+      ),
     },
     {
       key: "actions",
@@ -280,6 +313,35 @@ export default function ProjectUnitsPage() {
         />
       </div>
 
+      {!list.error && list.items.length > 0 && (
+        <div
+          role="group"
+          aria-label="Resumen por estado en esta página"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+        >
+          {STATUS_ORDER.map((status) => {
+            const meta = UNIT_STATUS_META[status];
+            return (
+              <Card
+                key={status}
+                className="flex items-center justify-between gap-2 px-3.5 py-3"
+              >
+                <span className="flex items-center gap-2 text-sm text-muted">
+                  <span
+                    aria-hidden
+                    className={`h-2 w-2 shrink-0 rounded-full ${DOT_TONE[meta.tone]}`}
+                  />
+                  {meta.label}
+                </span>
+                <span className="font-display text-lg font-semibold tabular-nums text-foreground">
+                  {formatNumber(statusCounts[status])}
+                </span>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
       <Card className="overflow-hidden p-0">
         <DataTable
           columns={columns}
@@ -304,19 +366,21 @@ export default function ProjectUnitsPage() {
             ) : undefined
           }
           mobileCard={(u) => (
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-medium text-foreground">{u.code}</p>
-                <p className="text-xs text-muted">
-                  {labelFor(UNIT_TYPE_LABELS, u.type)} · {areaLabel(u.areaM2)}
-                </p>
-                <div className="mt-1.5">
-                  <Badge tone={UNIT_STATUS_META[u.status]?.tone ?? "neutral"} dot>
-                    {UNIT_STATUS_META[u.status]?.label ?? u.status}
-                  </Badge>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-display font-semibold text-foreground">
+                    {u.code}
+                  </p>
+                  <p className="text-xs text-subtle">
+                    {labelFor(UNIT_TYPE_LABELS, u.type)} · {areaLabel(u.areaM2)}
+                  </p>
                 </div>
+                <Badge tone={UNIT_STATUS_META[u.status]?.tone ?? "neutral"} dot>
+                  {UNIT_STATUS_META[u.status]?.label ?? u.status}
+                </Badge>
               </div>
-              <span className="shrink-0 text-sm font-medium text-foreground">
+              <span className="font-display text-base font-semibold tabular-nums text-foreground">
                 {formatCurrency(u.price, u.currency)}
               </span>
             </div>

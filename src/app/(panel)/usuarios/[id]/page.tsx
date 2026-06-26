@@ -3,7 +3,18 @@
 import { useCallback, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Pencil,
+  Trash2,
+  Mail,
+  Phone,
+  Building2,
+  Clock,
+  CalendarPlus,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +33,57 @@ import { errorMessage } from "@/lib/api/errors";
 import { formatDate, formatDateTime } from "@/lib/format";
 import type { Role, User } from "@/lib/api/types";
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+/** Línea de contacto con acción directa (mailto:/tel:) o valor plano. */
+function ContactRow({
+  icon: Icon,
+  label,
+  value,
+  href,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string | null;
+  href?: string;
+}) {
   return (
-    <div className="flex flex-col gap-0.5 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
-      <dt className="text-sm text-muted">{label}</dt>
-      <dd className="text-sm font-medium text-foreground sm:text-right">{value}</dd>
+    <div className="flex items-center gap-3 border-b border-border py-3 last:border-0">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-surface-muted text-subtle">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-subtle">{label}</p>
+        {value && href ? (
+          <a
+            href={href}
+            className="block truncate text-sm font-medium text-primary hover:text-primary-hover hover:underline"
+          >
+            {value}
+          </a>
+        ) : (
+          <p className="truncate text-sm font-medium text-foreground">{value ?? "—"}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Tile de dato (label arriba, valor abajo) para metadatos. */
+function MetaTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-card border border-border bg-surface-muted p-4">
+      <div className="flex items-center gap-1.5 text-subtle">
+        <Icon className="h-3.5 w-3.5" />
+        <span className="text-xs">{label}</span>
+      </div>
+      <p className="mt-1.5 text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }
@@ -86,14 +143,22 @@ export default function UserDetailPage() {
       </Link>
 
       {loading ? (
-        <Card>
-          <CardContent className="space-y-4 pt-5">
-            <Skeleton className="h-7 w-48" />
-            <div className="space-y-3 pt-4">
-              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-5 w-full" />)}
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-16 w-16 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-48" />
+              <Skeleton className="h-5 w-32" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <Card>
+            <CardContent className="space-y-3 pt-5">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </CardContent>
+          </Card>
+        </div>
       ) : error ? (
         <Card>
           {error.statusCode === 404 ? (
@@ -117,18 +182,21 @@ export default function UserDetailPage() {
               <Avatar
                 src={user.img}
                 name={`${user.firstName} ${user.lastName}`}
-                className="h-14 w-14"
+                className="h-16 w-16 text-lg"
               />
-              <div>
+              <div className="min-w-0">
                 <h1 className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
                   {user.firstName} {user.lastName}
                 </h1>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <Badge tone="neutral">{roleName(user.roleId)}</Badge>
+                  <Badge tone="primary">
+                    <ShieldCheck className="h-3 w-3" />
+                    {roleName(user.roleId)}
+                  </Badge>
                   {user.isActive ? (
                     <Badge tone="success" dot>Activo</Badge>
                   ) : (
-                    <Badge tone="neutral" dot>Inactivo</Badge>
+                    <Badge tone="danger" dot>Inactivo</Badge>
                   )}
                 </div>
               </div>
@@ -154,18 +222,51 @@ export default function UserDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Datos</CardTitle>
+              <CardTitle>Contacto</CardTitle>
             </CardHeader>
             <CardContent>
-              <dl>
-                <Row label="Email" value={user.email} />
-                <Row label="Teléfono" value={user.phone ?? "—"} />
-                <Row label="Rol" value={roleName(user.roleId)} />
-                <Row label="Departamento" value={user.department ?? "—"} />
-                <Row label="Último acceso" value={formatDateTime(user.lastLoginAt)} />
-                <Row label="Creado" value={formatDate(user.createdAt)} />
-                <Row label="Última actualización" value={formatDateTime(user.updatedAt)} />
-              </dl>
+              <ContactRow
+                icon={Mail}
+                label="Email"
+                value={user.email}
+                href={`mailto:${user.email}`}
+              />
+              <ContactRow
+                icon={Phone}
+                label="Teléfono"
+                value={user.phone}
+                href={user.phone ? `tel:${user.phone}` : undefined}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Información</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <MetaTile
+                  icon={Building2}
+                  label="Departamento"
+                  value={user.department ?? "—"}
+                />
+                <MetaTile
+                  icon={Clock}
+                  label="Último acceso"
+                  value={formatDateTime(user.lastLoginAt)}
+                />
+                <MetaTile
+                  icon={CalendarPlus}
+                  label="Creado"
+                  value={formatDate(user.createdAt)}
+                />
+                <MetaTile
+                  icon={RefreshCw}
+                  label="Última actualización"
+                  value={formatDateTime(user.updatedAt)}
+                />
+              </div>
             </CardContent>
           </Card>
 
