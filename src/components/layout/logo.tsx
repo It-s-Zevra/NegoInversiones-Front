@@ -1,35 +1,50 @@
 import { cn } from "@/lib/utils";
 
+const ICON_SRC = "/brand/icon1.png";
+const WORDMARK_SRC = "/brand/icologo.png";
+
+/**
+ * Marca NegoInversiones.
+ *  - `collapsed`: solo el isotipo (flor) — barras estrechas, loaders, favicon.
+ *  - completo: isotipo + wordmark "NEGO INVERSIONES".
+ *  - `onDark`: invierte el wordmark a blanco para fondos oscuros (panel de login).
+ */
 export function Logo({
   collapsed = false,
+  onDark = false,
   className,
+  iconClassName,
 }: {
   collapsed?: boolean;
+  onDark?: boolean;
   className?: string;
+  iconClassName?: string;
 }) {
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-        <svg
-          viewBox="0 0 24 24"
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M4 19V7l8-4 8 4v12" />
-          <path d="M4 19h16" />
-          <path d="M9 19v-5h6v5" />
-        </svg>
-      </span>
+    <span className={cn("inline-flex items-center gap-2.5", className)}>
+      <img
+        src={ICON_SRC}
+        alt={collapsed ? "NegoInversiones" : ""}
+        aria-hidden={collapsed ? undefined : true}
+        width={36}
+        height={36}
+        draggable={false}
+        className={cn(
+          "h-9 w-9 shrink-0 select-none object-contain",
+          iconClassName
+        )}
+      />
       {!collapsed && (
-        <span className="font-display text-base font-semibold tracking-tight text-foreground">
-          Nego<span className="text-muted font-normal">inversiones</span>
-        </span>
+        <img
+          src={WORDMARK_SRC}
+          alt="NegoInversiones"
+          width={64}
+          height={22}
+          draggable={false}
+          style={onDark ? { filter: "brightness(0) invert(1)" } : undefined}
+          className="h-5.5 w-auto select-none object-contain"
+        />
       )}
-    </div>
+    </span>
   );
 }

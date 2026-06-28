@@ -26,7 +26,7 @@ const HIGHLIGHTS = [
 
 export default function LoginPage() {
   return (
-    <main className="grid min-h-dvh lg:grid-cols-2">
+    <main className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
       {/* Panel de marca (decorativo) — solo desktop */}
       <aside className="relative hidden overflow-hidden bg-primary text-primary-foreground lg:flex lg:flex-col lg:justify-between lg:p-12">
         {/* Degradado y brillos decorativos */}
@@ -42,13 +42,21 @@ export default function LoginPage() {
           aria-hidden
           className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-white/10 blur-3xl"
         />
+        {/* Isotipo gigante como marca de agua */}
+        <img
+          src="/brand/icon1.png"
+          alt=""
+          aria-hidden
+          draggable={false}
+          className="pointer-events-none absolute -bottom-16 -right-14 h-80 w-80 select-none object-contain opacity-10"
+        />
 
         <div className="relative">
-          <Logo className="[&_span:first-child]:bg-white/15 [&_span:first-child]:text-primary-foreground [&_span:last-child]:text-primary-foreground [&_span:last-child_span]:text-primary-foreground/70" />
+          <Logo onDark />
         </div>
 
         <div className="relative max-w-md">
-          <h2 className="font-display text-3xl font-semibold leading-tight tracking-tight">
+          <h2 className="font-display text-[2rem] font-semibold leading-[1.15] tracking-tight">
             El panel para administrar todo tu negocio inmobiliario.
           </h2>
           <p className="mt-4 text-base text-primary-foreground/80">
@@ -79,13 +87,18 @@ export default function LoginPage() {
       </aside>
 
       {/* Columna del formulario */}
-      <section className="flex min-h-dvh flex-col bg-app px-4 py-10 sm:px-8">
+      <section className="relative flex min-h-dvh flex-col bg-app px-4 py-10 sm:px-8">
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-sm">
-            {/* Logo + heading (móvil muestra logo; desktop ya lo tiene a la izquierda) */}
+            {/* Marca + heading (móvil muestra el logo a color; desktop ya lo tiene a la izquierda) */}
             <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
-              <Logo className="lg:hidden" />
-              <h1 className="mt-6 font-display text-2xl font-semibold tracking-tight text-foreground lg:mt-0">
+              <img
+                src="/brand/icologo.png"
+                alt="NegoInversiones"
+                draggable={false}
+                className="mb-6 h-9 w-auto select-none object-contain lg:hidden"
+              />
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
                 Inicia sesión
               </h1>
               <p className="mt-1.5 text-sm text-muted">
@@ -98,6 +111,11 @@ export default function LoginPage() {
                 <LoginForm />
               </Suspense>
             </div>
+
+            <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-subtle">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Conexión segura · Uso exclusivamente interno
+            </p>
           </div>
         </div>
 

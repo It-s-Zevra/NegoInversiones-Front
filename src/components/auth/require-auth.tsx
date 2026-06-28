@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import { Logo } from "@/components/layout/logo";
-import { Spinner } from "@/components/ui/spinner";
+import { BrandLoader } from "@/components/layout/brand-loader";
 
 /** Protege el shell del panel: muestra loader mientras hidrata; redirige si no hay sesión. */
 export function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -17,12 +16,10 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (status !== "authenticated") {
     return (
-      <div className="grid min-h-dvh place-items-center">
-        <div className="flex flex-col items-center gap-4">
-          <Logo collapsed />
-          <Spinner className="h-5 w-5 text-muted" />
-        </div>
-      </div>
+      <BrandLoader
+        fullScreen
+        caption={status === "unauthenticated" ? "Redirigiendo…" : "Cargando tu panel…"}
+      />
     );
   }
 
